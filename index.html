@@ -179,7 +179,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .mk-tooltip{position:fixed;background:rgba(15,23,42,.92);color:#f1f5f9;font-size:11px;font-weight:600;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:9999;opacity:0;transition:opacity .15s;transform:translateX(-50%)}
 .mk-tooltip::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:rgba(15,23,42,.92)}
 .kk-marker.done{background:#22c55e!important;width:14px!important;height:14px!important;box-shadow:0 2px 8px rgba(34,197,94,.6)!important}
-.kk-marker.active-mk{width:20px!important;height:20px!important;border:3px solid #fff!important;box-shadow:0 0 0 3px rgba(255,255,255,.5),0 3px 10px rgba(0,0,0,.7)!important}
+.kk-marker.active-mk{width:28px!important;height:28px!important;border:3px solid #fff!important;box-shadow:0 0 0 3px rgba(255,255,255,.5),0 3px 10px rgba(0,0,0,.7)!important}
 .kk-marker.g1{background:#3b82f6}.kk-marker.g2{background:#ef4444}.kk-marker.g3{background:#a78bfa}.kk-marker.g4{background:#f59e0b}.kk-marker.g5{background:#10b981}.kk-marker.g6{background:#ec4899}.kk-marker.g0{background:#7d8590}
 
 /* 팝업 */
@@ -348,7 +348,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
       </div>
       <div class="panel" id="groupPanel" style="display:none">
         <div class="ptitle">👥 그룹</div>
-        <div class="filter-row" id="groupFilter"></div>
+        <select id="groupSelect" onchange="onGroupSelectChange(this.value)" style="width:100%;padding:8px 9px;font-size:12px;font-weight:700"></select>
       </div>
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
@@ -572,7 +572,7 @@ let projectList=[];
 let items=[],overlays={};
 let doneMap={},memoMap={},photoMap={},hydrantMap={};
 let hyDraft={}; // 카드에서 저장 전 임시 편집 상태 (idx 기준)
-let groups=[],filterGroup=new Set(['all']),filterText='';
+let groups=[],filterGroupVal='',filterText='';
 
 /* ══════════ Utils & DOM Cache ══════════ */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -789,7 +789,7 @@ async function openProject(proj){
   document.getElementById('homeView').style.display='none';
   document.getElementById('mapView').style.display='flex';
   document.getElementById('mapHeaderTitle').textContent=proj.name;
-  items=[];overlays={};doneMap={};memoMap={};photoMap={};hydrantMap={};hyDraft={};groups=[];filterGroup=new Set(['all']);filterText='';
+  items=[];overlays={};doneMap={};memoMap={};photoMap={};hydrantMap={};hyDraft={};groups=[];filterGroupVal='';filterText='';
   document.getElementById('listEl').innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:30px">지도 초기화 중...</div>';
   const dateEl=document.getElementById('inspDateGlobal');
   if(dateEl&&!dateEl.value)dateEl.value=new Date().toISOString().slice(0,10); // 안전장치: 비어있으면 오늘 날짜로
@@ -861,30 +861,35 @@ async function loadProjectData(){
   }catch(e){showToast('데이터 로드 실패','err');}
 }
 
-// ━━ 그룹 필터 ━━
+// ━━ 그룹 필터 (119hyd-inspec과 동일하게 네이티브 select 드롭다운 사용 — 모바일에서 작은 필터 알약 버튼이 잘 눌리지 않는 문제 해결) ━━
 function buildGroupFilter(){
   const panel=document.getElementById('groupPanel');
-  const row=document.getElementById('groupFilter');
+  const sel=document.getElementById('groupSelect');
   if(!groups.length){panel.style.display='none';return;}
   panel.style.display='block';
-  row.innerHTML=`<span class="fbtn active" id="gf-all" onclick="toggleGroup('all')">전체</span>`
-    +groups.map((g,i)=>`<span class="fbtn ${GROUP_CLS[i%6]}" id="gf-${i}" onclick="toggleGroup('${g}')">${g} <span class="dcnt" id="gc-${i}"></span></span>`).join('');
+  const cur=filterGroupVal;
+  sel.innerHTML=`<option value="">전체 그룹 (모든 소화전 표시)</option>`
+    +groups.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');
+  sel.value=groups.includes(cur)?cur:'';
   updateGroupCounts();
 }
-function toggleGroup(g){
-  if(g==='all')filterGroup=new Set(['all']);
-  else{filterGroup.delete('all');filterGroup.has(g)?filterGroup.delete(g):filterGroup.add(g);if(!filterGroup.size)filterGroup=new Set(['all']);}
-  const isAll=filterGroup.has('all');
-  document.getElementById('gf-all')?.classList.toggle('active',isAll);
-  groups.forEach((grp,i)=>document.getElementById(`gf-${i}`)?.classList.toggle('active',!isAll&&filterGroup.has(grp)));
+function onGroupSelectChange(g){
+  filterGroupVal=g||'';
   applyFilter();
 }
 function updateGroupCounts(){
+  const sel=document.getElementById('groupSelect');
+  if(!sel)return;
   const vis=items.filter(d=>!filterText||d.name.toLowerCase().includes(filterText.toLowerCase()));
-  groups.forEach((g,i)=>{const el=document.getElementById(`gc-${i}`);if(el)el.textContent=vis.filter(d=>d.group_name===g).length;});
+  const opts=sel.querySelectorAll('option');
+  opts.forEach(opt=>{
+    if(!opt.value){opt.textContent='전체 그룹 (모든 소화전 표시)';return;}
+    const cnt=vis.filter(d=>d.group_name===opt.value).length;
+    opt.textContent=`${opt.value} (${cnt})`;
+  });
 }
 function isHidden(d){
-  if(!filterGroup.has('all')&&!filterGroup.has(d.group_name||''))return true;
+  if(filterGroupVal&&d.group_name!==filterGroupVal)return true;
   if(filterText&&!d.name.toLowerCase().includes(filterText.toLowerCase())&&!(d.address||'').toLowerCase().includes(filterText.toLowerCase()))return true;
   return false;
 }
@@ -1064,17 +1069,13 @@ function addMarker(idx,d){
   });
   el.addEventListener('mouseleave',()=>{_sharedTooltip.style.opacity='0';});
   // 모바일: 이름 말풍선 레이블을 CustomOverlay로 마커 아래 항상 표시
-  // 탭하면 정보카드가 열리되, 드래그(지도 이동) 제스처는 그대로 통과시켜 지도 이동을 막지 않는다.
+  // ⚠ 소화전이 촘촘한 지역에서 이름표가 클릭 가능하면 화면을 뒤덮어 지도 드래그가 막히는 문제가 있어,
+  //    지도 드래그를 우선시해서 이름표는 순수 표시용으로만 두고, 탭 입력은 마커 원(el)에서만 받는다.
   let labelOverlay=null;
   if('ontouchstart' in window){
     const color=groupColor(d);
     const labelEl=document.createElement('div');
-    labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${color};background:rgba(255,255,255,0.95);border:1.5px solid ${color};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer`;
-    labelEl.addEventListener('click',e=>{e.stopPropagation();openIw();});
-    let _lbTouchMoved=false;
-    labelEl.addEventListener('touchstart',()=>{_lbTouchMoved=false;},{passive:true});
-    labelEl.addEventListener('touchmove',()=>{_lbTouchMoved=true;},{passive:true});
-    labelEl.addEventListener('touchend',e=>{e.stopPropagation();if(!_lbTouchMoved){e.preventDefault();openIw();}},{passive:false});
+    labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${color};background:rgba(255,255,255,0.95);border:1.5px solid ${color};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:none;cursor:default`;
     labelEl.textContent=d.name;
     labelOverlay=new kakao.maps.CustomOverlay({
       position:new kakao.maps.LatLng(d.lat,d.lng),
@@ -1101,7 +1102,7 @@ function addMarker(idx,d){
     e.stopPropagation();
   },{passive:false});
 
-  const iw=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(d.lat,d.lng),content:iwEl,yAnchor:1.1,zIndex:100});
+  const iw=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(d.lat,d.lng),content:iwEl,yAnchor:1.03,zIndex:100});
   renderPopup(iwEl,idx,d,iw);
 
   function openIw(){
@@ -1617,7 +1618,7 @@ function renderList(){
         }
       };
       // 모바일: 목록 클릭 시 지도 모드로 자동 전환 (relayout 완료 후 이동해야 좌표가 정확함)
-      if(isMobile){switchToMapMode();setTimeout(doPan,260);}
+      if(isMobile){switchToMapMode();setTimeout(doPan,560);}
       else doPan();
     });
     frag.appendChild(div);
@@ -1825,16 +1826,64 @@ async function _runReset(parsed){
   }
 }
 
+// 주소에 시/도/구 등 지역명이 포함되어 있는지 확인
+function addrHasRegion(addr){
+  return /(특별시|광역시|[가-힣]+도\s|[가-힣]+시\s|[가-힣]+군\s|[가-힣]+구\s)/.test(addr);
+}
+// "독산로85길 40 주건축물" 같은 문자열에서 도로명주소 핵심부(~로/~길 + 건물번호)만 추출.
+// 엑셀에 섞여 들어온 건물명/용도 등 뒤에 붙은 군더더기를 잘라내기 위함 (119hyd-inspec과 동일 로직)
+function extractCoreRoadAddress(addr){
+  const m=addr.match(/^(.*(?:로|길))\s*(\d+(?:-\d+)?)/);
+  if(!m)return null;
+  const core=`${m[1]} ${m[2]}`.trim();
+  return core===addr.trim()?null:core;
+}
+async function kakaoAddrSearch(q){
+  try{
+    const r=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
+    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
+  }catch{}
+  return null;
+}
+async function kakaoKeywordSearch(q){
+  try{
+    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
+    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
+  }catch{}
+  return null;
+}
+// 카카오가 다 실패했을 때 최종 폴백 (OpenStreetMap 지오코딩, 무료/무인증)
+async function nominatimSearch(q){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=kr&limit=1&accept-language=ko`,{headers:{'Accept-Language':'ko'}});
+    if(r.ok){const arr=await r.json();if(arr?.[0])return{lat:+arr[0].lat,lng:+arr[0].lon};}
+  }catch{}
+  return null;
+}
 async function geocodeAddr(addr){
   if(!addr)return null;
-  // 도로명/지번이 짧으면 금천구 추가
-  const fullAddr=addr.includes('서울')||addr.includes('금천')?addr:'서울 금천구 '+addr;
-  // 주소 검색
-  const r=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(fullAddr)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-  if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
-  // 키워드 검색 폴백
-  const r2=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(fullAddr)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-  if(r2.ok){const d2=await r2.json();if(d2.documents?.[0])return{lat:+d2.documents[0].y,lng:+d2.documents[0].x};}
+  const REGION_PREFIX='서울특별시 금천구';
+  // 1) 원본 주소 그대로 검색
+  let geo=await kakaoAddrSearch(addr);
+  if(geo)return geo;
+  // 2) 핵심 도로명주소만 추출해서 재시도 (건물명/용도 등 군더더기 제거)
+  const cleaned=extractCoreRoadAddress(addr);
+  if(cleaned){
+    geo=await kakaoAddrSearch(cleaned);
+    if(geo)return geo;
+  }
+  // 3) 지역명(시/도/구)이 빠져있으면 기본 지역명을 붙여서 재시도
+  const base=cleaned||addr;
+  if(!addrHasRegion(base)){
+    geo=await kakaoAddrSearch(`${REGION_PREFIX} ${base}`);
+    if(geo)return geo;
+  }
+  // 4) 키워드 검색 폴백
+  geo=await kakaoKeywordSearch(addrHasRegion(addr)?addr:`${REGION_PREFIX} ${addr}`);
+  if(geo)return geo;
+  // 5) 카카오가 다 실패하면 Nominatim(OpenStreetMap)으로 마지막 시도
+  geo=await nominatimSearch(addrHasRegion(base)?base:`${REGION_PREFIX} ${base}`);
+  if(geo)return geo;
   await sleep(80);
   return null;
 }
