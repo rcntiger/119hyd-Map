@@ -907,6 +907,7 @@ function setSort(mode){
 
 function applyFilter(){
   filterText=document.getElementById('searchInput').value.trim();
+  const toAdd=[],toRemove=[];
   items.forEach((d,i)=>{
     const hide=isHidden(d);
     document.getElementById(`item-${i}`)?.classList.toggle('hidden',hide);
@@ -916,12 +917,19 @@ function applyFilter(){
       o.labelOverlay?.setMap(hide?null:kakaoMap);
       // 클러스터러 계산용 invisible 마커도 같이 빼줘야 카카오 기본 풍선이 남지 않음
       if(clusterer&&o.clMarker&&o.hidden!==hide){
-        if(hide)clusterer.removeMarker(o.clMarker);
-        else clusterer.addMarker(o.clMarker,true);
+        if(hide)toRemove.push(o.clMarker);
+        else toAdd.push(o.clMarker);
         o.hidden=hide;
       }
     }
   });
+  // 마커 하나씩 addMarker/removeMarker를 반복 호출하면(특히 항목이 수백 개일 때) 매번
+  // 재계산이 일어나 모바일에서 버벅이거나 반영이 늦어 보이는 문제가 있어, 한 번에 일괄 처리 후 다시 그린다
+  if(clusterer){
+    if(toRemove.length)clusterer.removeMarkers(toRemove);
+    if(toAdd.length)clusterer.addMarkers(toAdd,true);
+    clusterer.redraw();
+  }
   updateStats();updateGroupCounts();
 }
 
@@ -1056,14 +1064,17 @@ function addMarker(idx,d){
   });
   el.addEventListener('mouseleave',()=>{_sharedTooltip.style.opacity='0';});
   // 모바일: 이름 말풍선 레이블을 CustomOverlay로 마커 아래 항상 표시
-  // ⚠ 마커가 촘촘한 소화전 지도 특성상 라벨이 클릭 가능하면 화면 전체를 뒤덮어
-  //    지도 드래그가 아예 안 되는 문제가 있어, 라벨은 순수 표시용으로만 두고
-  //    탭 입력은 마커 원(el) 자체에서만 받는다.
+  // 탭하면 정보카드가 열리되, 드래그(지도 이동) 제스처는 그대로 통과시켜 지도 이동을 막지 않는다.
   let labelOverlay=null;
   if('ontouchstart' in window){
     const color=groupColor(d);
     const labelEl=document.createElement('div');
-    labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${color};background:rgba(255,255,255,0.95);border:1.5px solid ${color};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:none;cursor:default`;
+    labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${color};background:rgba(255,255,255,0.95);border:1.5px solid ${color};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer`;
+    labelEl.addEventListener('click',()=>openIw());
+    let _lbTouchMoved=false;
+    labelEl.addEventListener('touchstart',()=>{_lbTouchMoved=false;},{passive:true});
+    labelEl.addEventListener('touchmove',()=>{_lbTouchMoved=true;},{passive:true});
+    labelEl.addEventListener('touchend',e=>{if(!_lbTouchMoved){e.preventDefault();openIw();}},{passive:false});
     labelEl.textContent=d.name;
     labelOverlay=new kakao.maps.CustomOverlay({
       position:new kakao.maps.LatLng(d.lat,d.lng),
@@ -1090,7 +1101,7 @@ function addMarker(idx,d){
     e.stopPropagation();
   },{passive:false});
 
-  const iw=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(d.lat,d.lng),content:iwEl,yAnchor:1.1,zIndex:100});
+  const iw=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(d.lat,d.lng),content:iwEl,yAnchor:1.3,zIndex:100});
   renderPopup(iwEl,idx,d,iw);
 
   function openIw(){
@@ -1625,6 +1636,7 @@ async function retryGeocodeItem(idx){
     await SupabaseUtil.update('hydmap_items',{lat:geo.lat,lng:geo.lng},{id:d.id});
     d.lat=geo.lat;d.lng=geo.lng;
     addMarker(idx,d);
+    if(clusterer)clusterer.redraw();
     renderList();
     showToast('✅ 좌표를 찾았습니다','ok');
   }catch(e){showToast('재검색 실패: '+(e?.message||''),'err');}
