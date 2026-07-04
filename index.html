@@ -1574,7 +1574,7 @@ async function deletePhoto(idx,photoId,url){
   if(!confirm('사진을 삭제하시겠습니까? (기록만 삭제되며 Cloudinary 원본은 남습니다)'))return;
   const d=items[idx];if(!d)return;
   await SupabaseUtil.remove('hydmap_photos',{id:photoId});
-  if(photoMap[d.id])photoMap[d.id]=photoMap[d.id].filter(p=>p.id!==photoId);
+  if(photoMap[d.id])photoMap[d.id]=photoMap[d.id].filter(p=>String(p.id)!==String(photoId));
   renderPhotoGrid(idx,photoMap[d.id]||[]);
   showToast('사진 삭제됨','ok');
 }
