@@ -89,12 +89,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .prog-wrap{height:5px;background:var(--sur2);border-radius:3px;overflow:hidden;margin-top:8px}
 .prog-fill{height:100%;background:var(--lo);border-radius:3px;transition:width .4s}
 .prog-label{font-size:10px;color:var(--mt);margin-top:3px;text-align:center}
-.filter-row{display:flex;gap:5px;flex-wrap:wrap}
 .fbtn{padding:4px 9px;border-radius:20px;border:1px solid var(--bd2);background:var(--sur2);color:var(--mt);font-size:11px;cursor:pointer;user-select:none;transition:all .12s}
 .fbtn.active{color:#fff;border-color:transparent;background:var(--ac)}
-.fbtn.g1.active{background:#3b5fc4;color:#fff}.fbtn.g2.active{background:#c0392b;color:#fff}.fbtn.g3.active{background:#7c3aed;color:#fff}
-.fbtn.g4.active{background:#b45309;color:#fff}.fbtn.g5.active{background:#059669;color:#fff}.fbtn.g6.active{background:#be185d;color:#fff}
-.dcnt{opacity:.7;font-size:10px;margin-left:1px}
 .search-wrap input{width:100%;padding:7px 9px}
 .list{flex:1;overflow-y:auto;padding:5px}
 .list::-webkit-scrollbar{width:3px}
@@ -126,8 +122,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
   .map-header-row1>div{margin-left:0}
   .map-header-row2{gap:8px}
   .map-header-row2 .btn{flex:0 1 auto;padding:6px 10px!important;font-size:10px!important;text-align:center;white-space:nowrap}
-  #inspNameGlobal{width:96px!important}
-  #inspDateGlobal{width:108px!important}
   .map-header .btn{padding:4px 7px!important;font-size:10px!important;white-space:nowrap;flex-shrink:0}
   .map-header-title{display:none}
   .tool-btn .btn-txt{display:inline}
@@ -328,43 +322,34 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 <div id="mapView" style="display:flex;flex-direction:column">
   <div class="map-header" id="mapHeader">
     <div class="map-header-row1">
-      <button class="back-btn" id="backBtn" onclick="handleBack()">← 목록</button>
+      <button class="back-btn" id="backBtn" onclick="handleBack()">← 이전 화면</button>
       <span class="map-header-title" id="mapHeaderTitle">점검 지도</span>
-      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-        <input type="text" id="inspNameGlobal" placeholder="점검자" oninput="saveInspName()"
-          style="width:110px;padding:5px 7px;font-size:11px;font-weight:700;border-radius:6px"/>
-        <input type="date" id="inspDateGlobal" onchange="saveInspDate()"
-          style="width:120px;padding:5px 5px;font-size:11px;border-radius:6px;color-scheme:dark"/>
-      </div>
     </div>
     <div class="map-header-row2">
       <button class="btn btn-ghost" onclick="showUploadModal()" style="padding:4px 10px;font-size:11px;flex-shrink:0">📂 엑셀 업로드</button>
-      <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:4px 10px;font-size:11px;flex-shrink:0">🔧 컬럼 재설정</button>
-      <button class="btn btn-ghost" onclick="downloadOriginalFile()" style="padding:4px 10px;font-size:11px;flex-shrink:0">⬇️ 원본 내려받기</button>
+      <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:4px 10px;font-size:11px;flex-shrink:0">🔧 엑셀 재설정</button>
+      <button class="btn btn-ghost" onclick="exportExcel()" style="padding:4px 10px;font-size:11px;flex-shrink:0">📊 결과 엑셀출력</button>
     </div>
   </div>
   <div class="layout">
     <div class="sidebar" id="sidebar">
-      <div class="panel">
-        <div class="pgwrap" id="pgWrap"><div class="pgfill" id="pgFill"></div></div>
-        <div class="pglabel" id="pgLabel"></div>
-        <div class="stats-row">
-          <div class="stat"><div class="n" id="sTot" style="color:var(--ac)">0</div><div class="l">전체</div></div>
-          <div class="stat"><div class="n" id="sDone" style="color:var(--lo)">0</div><div class="l">완료</div></div>
-          <div class="stat"><div class="n" id="sLeft" style="color:var(--mt)">0</div><div class="l">미완료</div></div>
-          <div class="stat"><div class="n" id="sPct" style="color:var(--lo)">0%</div><div class="l">완료율</div></div>
-        </div>
-        <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
-        <div class="prog-label" id="progLabel">0 / 0 (0%)</div>
-        <button onclick="exportExcel()" style="width:100%;margin-top:8px;padding:7px;background:#22c55e;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 점검결과 엑셀 출력</button>
-      </div>
       <div class="panel" id="groupPanel" style="display:none">
         <div class="ptitle">👥 그룹</div>
         <select id="groupSelect" onchange="onGroupSelectChange(this.value)" style="width:100%;padding:8px 9px;font-size:12px;font-weight:700"></select>
       </div>
       <div class="panel">
+        <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-label" id="progLabel">0 / 0 (0%)</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+          <input type="text" id="inspNameGlobal" placeholder="점검자" oninput="saveInspName()"
+            style="flex:1;padding:7px 9px;font-size:12px;font-weight:700;border-radius:6px"/>
+          <input type="date" id="inspDateGlobal" onchange="saveInspDate()"
+            style="flex:1;padding:7px 6px;font-size:12px;border-radius:6px;color-scheme:dark"/>
+        </div>
+      </div>
+      <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-          <div class="ptitle" style="margin:0">🔍 대상 검색</div>
+          <div class="ptitle" style="margin:0;font-size:15px">🔍 소화전 검색</div>
           <div style="display:flex;gap:4px">
             <button class="fbtn" id="sortName" onclick="setSort('name')" style="font-size:10px;padding:2px 7px">이름</button>
             <button class="fbtn" id="sortAddr" onclick="setSort('addr')" style="font-size:10px;padding:2px 7px">주소</button>
@@ -496,7 +481,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 <div class="modal-bg" id="resetOptModal">
   <div class="modal" style="max-width:440px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <h3 style="margin:0">🔧 컬럼 재설정</h3>
+      <h3 style="margin:0">🔧 엑셀 재설정</h3>
       <button onclick="hideModal('resetOptModal')" style="background:none;border:none;color:var(--mt);font-size:22px;cursor:pointer;line-height:1;padding:2px 6px">✕</button>
     </div>
     <div style="background:rgba(255,123,114,.08);border:1px solid rgba(255,123,114,.25);border-radius:var(--r);padding:12px;margin-bottom:14px;font-size:12px;color:var(--hi);line-height:1.7">
@@ -571,7 +556,6 @@ const CLOUDINARY_CLOUD = 'dg4bnj8ad';
 const CLOUDINARY_PRESET = '119hyd_photos';
 const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
 const GROUP_COLORS = ['#3b5fc4','#c0392b','#7c3aed','#b45309','#059669','#be185d'];
-const GROUP_CLS    = ['g1','g2','g3','g4','g5','g6'];
 
 /* ══════════ State ══════════ */
 let kakaoMap=null,rvInstance=null,rvMinimapInst=null,rvOverlay=null,minimapOn=false;
@@ -834,7 +818,7 @@ async function goHome(){
     const toggle=document.getElementById('mobToggle');
     if(toggle)toggle.textContent='🗺️ 지도 보기';
     const backBtn=document.getElementById('backBtn');
-    if(backBtn)backBtn.textContent='← 목록';
+    if(backBtn)backBtn.textContent='← 이전 화면';
     const toolbar=document.getElementById('mapToolbar');
     if(toolbar)toolbar.style.display='none';
     const toolbarTop=document.getElementById('mapToolbarTop');
@@ -978,10 +962,10 @@ function updateStats(){
   const tot=filtered.length;
   const done=filtered.filter(d=>doneMap[d.id]).length;
   const pct=tot?Math.round(done/tot*100):0;
-  document.getElementById('sTot').textContent=tot;
-  document.getElementById('sDone').textContent=done;
-  document.getElementById('sLeft').textContent=tot-done;
-  document.getElementById('sPct').textContent=pct+'%';
+  document.getElementById('sTot')&&(document.getElementById('sTot').textContent=tot);
+  document.getElementById('sDone')&&(document.getElementById('sDone').textContent=done);
+  document.getElementById('sLeft')&&(document.getElementById('sLeft').textContent=tot-done);
+  document.getElementById('sPct')&&(document.getElementById('sPct').textContent=pct+'%');
   document.getElementById('progFill').style.width=pct+'%';
   document.getElementById('progLabel').textContent=done+' / '+tot+' ('+pct+'%)';
 }
@@ -1392,14 +1376,23 @@ function hySetGrade(idx,val){
   hyReRender(idx);
   hyMaybeAutoSave(idx);
 }
-// 소화전 종류 + 사용가부(필수 2항목)가 모두 채워지면 자동으로 저장한다 (별도 저장 버튼 없음)
+// ━━ 자동 저장 (디바운스 + 직렬화) ━━
+// 토글을 연타해도 마지막 변경 후 600ms 뒤 1회만 저장하고, 같은 항목의 저장이 진행 중이면
+// 끝난 뒤 최신 상태로 한 번 더 저장한다 (동시 upsert로 값이 꼬이는 경쟁상태 방지).
+const AUTOSAVE_DEBOUNCE_MS=600;
+const _autoSaveTimers={};   // idx → setTimeout id
+const _saveInFlight={};     // idx → true(저장 중)
+const _saveQueued={};       // idx → true(저장 중에 또 변경됨 → 끝나고 재저장)
 function hyMaybeAutoSave(idx){
   const d=items[idx];if(!d)return;
   const draft=hyGetDraft(idx,d);
-  if(draft.hydrant_type&&draft.result)hySaveNow(idx);
+  if(!(draft.hydrant_type&&draft.result))return;
+  clearTimeout(_autoSaveTimers[idx]);
+  _autoSaveTimers[idx]=setTimeout(()=>hySaveNow(idx),AUTOSAVE_DEBOUNCE_MS);
 }
 async function hySaveNow(idx){
   const d=items[idx];if(!d||!currentProject)return;
+  if(_saveInFlight[idx]){_saveQueued[idx]=true;return;} // 진행 중이면 예약만
   const draft=hyGetDraft(idx,d);
   if(!draft.hydrant_type||!draft.result)return; // 필수 항목 미완성 — 자동저장 대상 아님
   const name=getInspName();
@@ -1418,15 +1411,21 @@ async function hySaveNow(idx){
     insp_date:getInspDate(),
     updated_at:new Date().toISOString()
   };
+  _saveInFlight[idx]=true;
   try{
     const saved=await SupabaseUtil.upsert('hydmap_records',record,'item_id');
     hydrantMap[d.id]=Array.isArray(saved)?(saved[0]||record):(saved||record);
-    delete hyDraft[idx];
+    // 저장 중 추가 변경이 없었을 때만 draft를 비운다 (있으면 최신 draft 유지 후 재저장)
+    if(!_saveQueued[idx])delete hyDraft[idx];
     showToast('✅ 자동 저장됨','ok');
     hyReRender(idx);
     updateStats();
-    renderList();
+    updateListItem(idx);
   }catch(e){showToast('저장 실패: '+(e?.message||''),'err');}
+  finally{
+    _saveInFlight[idx]=false;
+    if(_saveQueued[idx]){_saveQueued[idx]=false;hySaveNow(idx);} // 밀린 변경 재저장
+  }
 }
 
 /* ══════════ Photo Grid ══════════ */
@@ -1622,53 +1621,63 @@ function renderList(){
   if(!items.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:30px">📂 엑셀 업로드로 대상을 추가하세요</div>';return;}
   const frag=document.createDocumentFragment();
   const order=displayIndexOrder&&displayIndexOrder.length===items.length?displayIndexOrder:items.map((_,i)=>i);
-  order.forEach(i=>{
-    const d=items[i];
-    const isDone=!!doneMap[d.id];
-    const color=groupColor(d);
-    const noCoord=!(d.lat&&d.lng);
-    const div=document.createElement('div');
-    div.className='item'+(isHidden(d)?' hidden':'')+(isDone?' done-item':'');
-    div.id=`item-${i}`;
-    div.innerHTML=`<div class="team-dot" style="background:${noCoord?'#94a3b8':color}"></div>
-      <div class="ibody">
-        <div class="iname">${esc(d.name)}</div>
-        <div class="isub">${esc((d.address||'').replace('서울특별시 금천구 ',''))}</div>
-        <div class="itags">
-          ${d.group_name?`<span class="itag">${esc(d.group_name)}</span>`:''}
-          ${hydrantMap[d.id]?`<span class="itag" style="background:${hyStatusInfo(hydrantMap[d.id]).bg};color:${hyStatusInfo(hydrantMap[d.id]).fg}">${hyStatusInfo(hydrantMap[d.id]).label}</span>`:''}
-          ${isDone?'<span class="itag done-tag">✓ 완료</span>':''}
-          ${memoMap[d.id]?'<span class="itag">📝 메모</span>':''}
-          ${(photoMap[d.id]?.length)?`<span class="itag">📷 ${photoMap[d.id].length}</span>`:''}
-          ${noCoord?`<span class="itag" style="background:#fee2e2;color:#dc2626">📍 좌표없음</span><button class="itag" style="background:#e0e7ff;color:#4338ca;cursor:pointer;border:none" onclick="event.stopPropagation();retryGeocodeItem(${i})">🔄 재시도</button>`:''}
-        </div>
-      </div>`;
-    div.addEventListener('click',()=>{
-      setActive(i);
-      if(noCoord){showToast('이 항목은 주소 좌표를 찾을 수 없어 지도에서 위치를 표시할 수 없습니다','err');return;}
-      const isMobile=window.innerWidth<=600;
-      const doPan=()=>{
-        if(d.lat&&d.lng&&kakaoMap){
-          kakaoMap.setLevel(3);
-          panToForCard(d.lat,d.lng);
-          if(overlays[i]){
-            if(iwOpen)iwOpen.setMap(null);
-            overlays[i].iw.setMap(kakaoMap);
-            iwOpen=overlays[i].iw;
-            if(activeMarkerEl)activeMarkerEl.classList.remove('active-mk');
-            const markerEl=overlays[i].overlay?.getContent&&overlays[i].overlay.getContent();
-            if(markerEl){markerEl.classList.add('active-mk');activeMarkerEl=markerEl;}
-            if(_sharedTooltip)_sharedTooltip.style.opacity='0';
-          }
-        }
-      };
-      // 모바일: 목록 클릭 시 지도 모드로 자동 전환 (relayout 완료 후 이동해야 좌표가 정확함)
-      if(isMobile){switchToMapMode();setTimeout(doPan,560);}
-      else doPan();
-    });
-    frag.appendChild(div);
-  });
+  order.forEach(i=>frag.appendChild(buildListItem(i)));
   el.appendChild(frag);
+}
+
+// 목록 항목 DOM 생성 (renderList와 updateListItem이 공유)
+function buildListItem(i){
+  const d=items[i];
+  const isDone=!!doneMap[d.id];
+  const color=groupColor(d);
+  const noCoord=!(d.lat&&d.lng);
+  const div=document.createElement('div');
+  div.className='item'+(isHidden(d)?' hidden':'')+(isDone?' done-item':'');
+  div.id=`item-${i}`;
+  div.innerHTML=`<div class="team-dot" style="background:${noCoord?'#94a3b8':color}"></div>
+    <div class="ibody">
+      <div class="iname">${esc(d.name)}</div>
+      <div class="isub">${esc((d.address||'').replace('서울특별시 금천구 ',''))}</div>
+      <div class="itags">
+        ${d.group_name?`<span class="itag">${esc(d.group_name)}</span>`:''}
+        ${hydrantMap[d.id]?`<span class="itag" style="background:${hyStatusInfo(hydrantMap[d.id]).bg};color:${hyStatusInfo(hydrantMap[d.id]).fg}">${hyStatusInfo(hydrantMap[d.id]).label}</span>`:''}
+        ${isDone?'<span class="itag done-tag">✓ 완료</span>':''}
+        ${memoMap[d.id]?'<span class="itag">📝 메모</span>':''}
+        ${(photoMap[d.id]?.length)?`<span class="itag">📷 ${photoMap[d.id].length}</span>`:''}
+        ${noCoord?`<span class="itag" style="background:#fee2e2;color:#dc2626">📍 좌표없음</span><button class="itag" style="background:#e0e7ff;color:#4338ca;cursor:pointer;border:none" onclick="event.stopPropagation();retryGeocodeItem(${i})">🔄 재시도</button>`:''}
+      </div>
+    </div>`;
+  div.addEventListener('click',()=>{
+    setActive(i);
+    if(!(d.lat&&d.lng)){showToast('이 항목은 주소 좌표를 찾을 수 없어 지도에서 위치를 표시할 수 없습니다','err');return;}
+    const isMobile=window.innerWidth<=600;
+    const doPan=()=>{
+      if(d.lat&&d.lng&&kakaoMap){
+        kakaoMap.setLevel(3);
+        panToForCard(d.lat,d.lng);
+        if(overlays[i]){
+          if(iwOpen)iwOpen.setMap(null);
+          overlays[i].iw.setMap(kakaoMap);
+          iwOpen=overlays[i].iw;
+          if(activeMarkerEl)activeMarkerEl.classList.remove('active-mk');
+          const markerEl=overlays[i].overlay?.getContent&&overlays[i].overlay.getContent();
+          if(markerEl){markerEl.classList.add('active-mk');activeMarkerEl=markerEl;}
+          if(_sharedTooltip)_sharedTooltip.style.opacity='0';
+        }
+      }
+    };
+    // 모바일: 목록 클릭 시 지도 모드로 자동 전환 (relayout 완료 후 이동해야 좌표가 정확함)
+    if(isMobile){switchToMapMode();setTimeout(doPan,560);}
+    else doPan();
+  });
+  return div;
+}
+
+// 단건 변경 시 해당 목록 항목만 교체 (전체 renderList보다 훨씬 가벼움 — 622개 DOM 재생성 방지)
+function updateListItem(i){
+  const oldEl=document.getElementById(`item-${i}`);
+  if(!oldEl){renderList();return;} // 목록이 아직 없으면 전체 렌더로 폴백
+  oldEl.replaceWith(buildListItem(i));
 }
 
 // 좌표가 없는 개별 항목만 다시 지오코딩 시도
@@ -1740,7 +1749,7 @@ async function applyFixLocation(idx,latLng){
       if(clusterer)clusterer.redraw();
     }
     hyReRender(idx);
-    renderList();
+    updateListItem(idx);
     setOtherMarkersHidden(idx,false);
     showToast(addr?'✅ 위치·주소가 함께 수정되었습니다':'✅ 위치가 수정되었습니다 (주소 확인 실패)','ok');
   }catch(e){
@@ -1759,7 +1768,7 @@ async function retryGeocodeItem(idx){
     d.lat=geo.lat;d.lng=geo.lng;
     addMarker(idx,d);
     if(clusterer)clusterer.redraw();
-    renderList();
+    updateListItem(idx);
     showToast('✅ 좌표를 찾았습니다','ok');
   }catch(e){showToast('재검색 실패: '+(e?.message||''),'err');}
 }
@@ -1892,6 +1901,28 @@ async function _onExcelConfirm(rows,mapping){
   }
 }
 
+// 지오코딩 + DB 삽입을 3개씩 병렬 배치로 처리 (완전 순차 대비 약 3배 빠름).
+// 카카오 로컬 API 쿼터를 고려해 동시 3개로 제한하고, 배치 사이에 짧게 쉰다.
+const GEOCODE_BATCH_SIZE=3;
+async function _insertParsedItems(parsed,pid,verb){
+  let done=0,ok=0;
+  for(let i=0;i<parsed.length;i+=GEOCODE_BATCH_SIZE){
+    const batch=parsed.slice(i,i+GEOCODE_BATCH_SIZE);
+    await Promise.all(batch.map(async d=>{
+      let lat=null,lng=null;
+      try{const geo=await geocodeAddr(d.address);if(geo){lat=geo.lat;lng=geo.lng;}}catch{}
+      try{
+        await SupabaseUtil.insert('hydmap_items',{inspection_id:pid,name:d.name,address:d.address,group_name:d.group_name||null,lat,lng,extra:d.extra||null});
+        ok++;
+      }catch{}
+      done++;
+      showToast(`(${done}/${parsed.length}) ${verb} 중...`,'');
+    }));
+    await sleep(60);
+  }
+  return ok;
+}
+
 async function _runUpload(parsed){
   const pid=currentProject.id;
   // 원본 파일 Storage에 저장
@@ -1914,18 +1945,7 @@ async function _runUpload(parsed){
     }catch(e){showToast('기존 데이터 삭제 실패: '+e.message,'err');return;}
   }
 
-  let ok=0;
-  for(let i=0;i<parsed.length;i++){
-    const d=parsed[i];
-    showToast(`(${i+1}/${parsed.length}) ${d.name} 업로드 중...`,'');
-    let lat=null,lng=null;
-    try{const geo=await geocodeAddr(d.address);if(geo){lat=geo.lat;lng=geo.lng;}}catch{}
-    try{
-      await SupabaseUtil.insert('hydmap_items',{inspection_id:pid,name:d.name,address:d.address,group_name:d.group_name||null,lat,lng,extra:d.extra||null});
-      ok++;
-    }catch{}
-    if(i%5===0)await sleep(50);
-  }
+  const ok=await _insertParsedItems(parsed,pid,'업로드');
   showToast(`${ok}/${parsed.length}개 업로드 완료`,'ok');
   await loadProjectData();
 }
@@ -1945,18 +1965,7 @@ async function _runReset(parsed){
     showToast('기존 항목 삭제 중...','');
     await SupabaseUtil.remove('hydmap_items',{inspection_id:pid});
 
-    let ok=0;
-    for(let i=0;i<parsed.length;i++){
-      const d=parsed[i];
-      showToast(`(${i+1}/${parsed.length}) ${d.name} 재설정 중...`,'');
-      let lat=null,lng=null;
-      try{const geo=await geocodeAddr(d.address);if(geo){lat=geo.lat;lng=geo.lng;}}catch{}
-      try{
-        await SupabaseUtil.insert('hydmap_items',{inspection_id:pid,name:d.name,address:d.address,group_name:d.group_name||null,lat,lng,extra:d.extra||null});
-        ok++;
-      }catch{}
-      if(i%5===0)await sleep(50);
-    }
+    const ok=await _insertParsedItems(parsed,pid,'재설정');
     showToast(`✅ 재설정 완료 (${ok}/${parsed.length}개)`,'ok');
     await loadProjectData();
   }catch(e){
@@ -2067,29 +2076,6 @@ async function exportExcel(){
 }
 
 // ━━ 원본 파일 다운로드 ━━
-async function downloadOriginalFile(){
-  if(!currentProject){showToast('프로젝트를 먼저 선택하세요','err');return;}
-  showToast('원본 파일 확인 중...','');
-  try{
-    const store=sbClient().storage;
-    const {data:files}=await store.from('hydmap-files').list(String(currentProject.id),{limit:10});
-    const orig=Array.isArray(files)?files.find(f=>f.name&&f.name.startsWith('original.')):null;
-    if(!orig)throw new Error('NO_FILE');
-    const {data:blob,error:dlErr}=await store.from('hydmap-files').download(`${currentProject.id}/${orig.name}`);
-    if(dlErr||!blob)throw new Error('다운로드 실패');
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=`${currentProject.name}_원본.${orig.name.split('.').pop()||'xlsx'}`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('✅ 원본 파일 다운로드 완료','ok');
-  }catch(e){
-    if(e.message==='NO_FILE') showToast('저장된 원본 파일이 없습니다','err');
-    else showToast('다운로드 실패: '+e.message,'err');
-  }
-}
-
 // ━━ 지도 검색 ━━
 let srchMarkers=[];
 function toggleMapSearch(){
@@ -2291,7 +2277,7 @@ function toggleMobView(){
   document.getElementById('sidebar').classList.toggle('map-mode',mobMapMode);
   document.getElementById('mobToggle').textContent=mobMapMode?'📋 목록 보기':'🗺️ 지도 보기';
   const backBtn=document.getElementById('backBtn');
-  if(backBtn&&window.innerWidth<=600)backBtn.textContent=mobMapMode?'← 이전':'← 목록';
+  if(backBtn&&window.innerWidth<=600)backBtn.textContent=mobMapMode?'← 이전':'← 이전 화면';
   const isMobile=window.innerWidth<=768;
   if(isMobile){
     document.getElementById('mapToolbar').style.display=mobMapMode?'flex':'none';
