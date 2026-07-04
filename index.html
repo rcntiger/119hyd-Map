@@ -706,7 +706,7 @@ function renderProjects(list){
 function showCreateModal(){document.getElementById('projName').value='';document.getElementById('projDesc').value='';document.getElementById('projExpire').value='';showModal('createModal');}
 
 function showEditModal(id){
-  const p=projectList.find(x=>x.id===id);
+  const p=projectList.find(x=>String(x.id)===String(id));
   if(!p){showToast('프로젝트 정보를 찾을 수 없습니다','err');return;}
   document.getElementById('editProjId').value=p.id;
   document.getElementById('editProjName').value=p.name||'';
