@@ -1827,16 +1827,16 @@ function getExcelReader(){
   excelReader=ExcelUtil.createReader({
     columns:[
       {id:'name',label:'이름',required:true,keywords:['이름','명칭','건물','시설','대상','name','번호','용수']},
+      {id:'addr',label:'주소',required:true,keywords:['주소','도로','지번','위치','addr']},
       {id:'lat',label:'위도',keywords:['위도','lat','latitude','y좌표']},
       {id:'lng',label:'경도',keywords:['경도','lng','lon','longitude','x좌표']},
-      {id:'addr',label:'주소',required:true,keywords:['주소','도로','지번','위치','addr']},
       {id:'group',label:'그룹/팀',keywords:['팀','구역','그룹','형태','group','team']},
       {id:'type',label:'소화전 종류(식구분)',keywords:['식구분','종류','구분','소화전종류','형식']},
       {id:'extra',label:'추가정보',keywords:['비고','추가','기타','결과','검수','extra']},
     ],
     defaultHeaderRow:1,
     confirmLabel:'확인',
-    onConfirm:(headers,rows,mapping)=>_onExcelConfirm(rows,mapping),
+    onConfirm:(headers,rows,mapping)=>_onExcelConfirm(headers,rows,mapping),
   });
   return excelReader;
 }
@@ -1899,13 +1899,18 @@ async function proceedReset(){
 }
 
 // ━━ 공통 확인 핸들러 (업로드/재설정 분기) ━━
-async function _onExcelConfirm(rows,mapping){
+async function _onExcelConfirm(headers,rows,mapping){
   const parsed=rows.map(r=>{
     const typeRaw=mapping.type!=null?String(r[mapping.type]||'').trim():'';
     // 119hyd-inspec.html과 동일한 판별 규칙: "지상" 포함 또는 '1'/'G' → 지상식, 그 외(값이 있으면) 지하식
     const hydrantType=typeRaw?(/지상|^1$|^G$/i.test(typeRaw)?'ground':'underground'):null;
     const extraObj={};
-    if(mapping.extra!=null)extraObj[mapping.extra]=String(r[mapping.extra]||'').trim();
+    // ⚠ mapping.extra는 컬럼명이 아니라 "몇 번째 열인지"를 가리키는 인덱스 숫자다.
+    //    그래서 실제 헤더 텍스트(headers[mapping.extra])를 키로 써야 "도색년월일: 2012-06-12"처럼 나온다.
+    if(mapping.extra!=null){
+      const colName=headers[mapping.extra]||'정보';
+      extraObj[colName]=String(r[mapping.extra]||'').trim();
+    }
     if(hydrantType)extraObj._type=hydrantType;
     // 엑셀에 위도/경도 컬럼이 매핑되어 있으면 그 값을 바로 사용 (지오코딩보다 정확함).
     // 값이 없거나 숫자가 아니면 null로 두고, 이후 업로드 단계에서 주소로 지오코딩해서 채운다.
