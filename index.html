@@ -88,7 +88,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .stat .l{font-size:9px;color:var(--mt);margin-top:1px}
 .prog-wrap{height:5px;background:var(--sur2);border-radius:3px;overflow:hidden;margin-top:8px}
 .prog-fill{height:100%;background:var(--lo);border-radius:3px;transition:width .4s}
-.prog-label{font-size:10px;color:var(--mt);margin-top:3px;text-align:center}
+.prog-label{font-size:15px;font-weight:700;color:var(--tx);margin-top:5px;text-align:center}
 .fbtn{padding:4px 9px;border-radius:20px;border:1px solid var(--bd2);background:var(--sur2);color:var(--mt);font-size:11px;cursor:pointer;user-select:none;transition:all .12s}
 .fbtn.active{color:#fff;border-color:transparent;background:var(--ac)}
 .search-wrap input{width:100%;padding:7px 9px}
@@ -121,13 +121,15 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
   .map-header-row1,.map-header-row2{display:flex;align-items:center;justify-content:center;gap:5px;width:100%}
   .map-header-row1>div{margin-left:0}
   .map-header-row2{gap:8px}
-  .map-header-row2 .btn{flex:0 1 auto;padding:6px 10px!important;font-size:10px!important;text-align:center;white-space:nowrap}
+  .map-header-row2 .btn{flex:0 1 auto;padding:6px 10px!important;font-size:12px!important;font-weight:700!important;text-align:center;white-space:nowrap}
   .map-header .btn{padding:4px 7px!important;font-size:10px!important;white-space:nowrap;flex-shrink:0}
   .map-header-title{display:none}
   .tool-btn .btn-txt{display:inline}
   .tool-btn{padding:6px 8px!important;font-size:11px!important}
   .sidebar.map-mode~.map-wrap .map-toolbar{display:flex!important}
   .sidebar.map-mode~.map-wrap .map-toolbar-top{display:flex!important}
+  .insp-row #inspNameGlobal{font-size:12px!important;padding:8px 6px!important}
+  .insp-row #inspDateGlobal{font-size:11.5px!important;padding:8px 3px!important}
   .iw-wrap{max-height:64vh!important;max-width:82vw!important;overflow-y:scroll!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important}
   .iw-memo textarea{height:90px!important}
   .iw-photos{grid-template-columns:repeat(3,1fr)!important}
@@ -326,25 +328,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
       <span class="map-header-title" id="mapHeaderTitle">점검 지도</span>
     </div>
     <div class="map-header-row2">
-      <button class="btn btn-ghost" onclick="showUploadModal()" style="padding:4px 10px;font-size:11px;flex-shrink:0">📂 엑셀 업로드</button>
-      <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:4px 10px;font-size:11px;flex-shrink:0">🔧 엑셀 재설정</button>
-      <button class="btn btn-ghost" onclick="exportExcel()" style="padding:4px 10px;font-size:11px;flex-shrink:0">📊 결과 엑셀출력</button>
+      <button class="btn btn-ghost" onclick="showUploadModal()" style="padding:5px 12px;font-size:13px;font-weight:700;flex-shrink:0">📂 엑셀 업로드</button>
+      <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:5px 12px;font-size:13px;font-weight:700;flex-shrink:0">🔧 엑셀 재설정</button>
+      <button class="btn" onclick="exportExcel()" style="padding:5px 12px;font-size:13px;font-weight:700;flex-shrink:0;background:#22c55e;color:#fff;border:1px solid #22c55e">📊 결과 엑셀출력</button>
     </div>
   </div>
   <div class="layout">
     <div class="sidebar" id="sidebar">
       <div class="panel" id="groupPanel" style="display:none">
-        <div class="ptitle">👥 그룹</div>
+        <div class="ptitle" style="font-size:15px">👥 그룹</div>
         <select id="groupSelect" onchange="onGroupSelectChange(this.value)" style="width:100%;padding:8px 9px;font-size:12px;font-weight:700"></select>
       </div>
       <div class="panel">
+        <div class="ptitle" style="margin:0 0 2px;font-size:15px">📈 진행률</div>
         <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
         <div class="prog-label" id="progLabel">0 / 0 (0%)</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+        <div class="insp-row" style="display:flex;gap:8px;margin-top:12px">
           <input type="text" id="inspNameGlobal" placeholder="점검자" oninput="saveInspName()"
-            style="flex:1;padding:7px 9px;font-size:12px;font-weight:700;border-radius:6px"/>
+            style="flex:1;min-width:0;padding:8px 9px;font-size:12.5px;font-weight:700;border-radius:6px;box-sizing:border-box;border:1.5px solid var(--bd2)"/>
           <input type="date" id="inspDateGlobal" onchange="saveInspDate()"
-            style="flex:1;padding:7px 6px;font-size:12px;border-radius:6px;color-scheme:dark"/>
+            style="flex:1.3;min-width:0;padding:8px 6px;font-size:12.5px;font-weight:700;border-radius:6px;color-scheme:dark;box-sizing:border-box;border:1.5px solid var(--bd2)"/>
         </div>
       </div>
       <div class="panel">
@@ -381,7 +384,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
         <button class="tool-btn" id="btnSat" onclick="toggleSat()">🛰️<span class="btn-txt"> 위성</span></button>
         <button class="tool-btn" id="btnDist" onclick="toggleDist()">📏<span class="btn-txt"> 거리</span></button>
         <button class="tool-btn" id="btnRv" onclick="toggleRvMode()">🔭<span class="btn-txt"> 로드뷰</span></button>
-        <button class="tool-btn on" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 ON</span></button>
+        <button class="tool-btn" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 OFF</span></button>
         <button class="tool-btn" id="btnDistClear" onclick="clearDist()" style="display:none;font-size:11px;color:var(--hi)">✕<span class="btn-txt"> 초기화</span></button>
       </div>
       <div class="map-toolbar" id="mapToolbar">
@@ -572,7 +575,7 @@ let items=[],overlays={};
 let doneMap={},memoMap={},photoMap={},hydrantMap={};
 let hyDraft={}; // 카드에서 저장 전 임시 편집 상태 (idx 기준)
 let groups=[],filterGroupVal='',filterText='';
-let labelsOn=true; // 마커 아래 이름표(풍선) 표시 여부
+let labelsOn=false; // 마커 아래 이름표(풍선) 표시 여부 (기본 OFF)
 let fixLocationIdx=-1; // 위치 수정 모드 중인 항목의 idx (-1이면 비활성)
 let displayIndexOrder=null; // 정렬된 표시 순서(원본 인덱스 배열). null이면 원본 순서 그대로
 
@@ -1088,28 +1091,24 @@ function addMarker(idx,d){
     _sharedTooltip.style.opacity='1';
   });
   el.addEventListener('mouseleave',()=>{_sharedTooltip.style.opacity='0';});
-  // 모바일: 이름 말풍선 레이블을 CustomOverlay로 마커 아래 항상 표시
-  // 마커/이름표 둘 중 하나만 터치해도 정보카드가 열리되, 드래그(지도 이동) 제스처는
-  // 그대로 통과시켜 지도 이동을 막지 않는다 (누른 채 움직이면 드래그로 인식).
-  let labelOverlay=null;
-  if('ontouchstart' in window){
-    const color=groupColor(d);
-    const labelEl=document.createElement('div');
-    labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${color};background:rgba(255,255,255,0.95);border:1.5px solid ${color};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer`;
-    labelEl.addEventListener('click',e=>{e.stopPropagation();openIw();});
-    let _lbTouchMoved=false;
-    labelEl.addEventListener('touchstart',()=>{_lbTouchMoved=false;},{passive:true});
-    labelEl.addEventListener('touchmove',()=>{_lbTouchMoved=true;},{passive:true});
-    labelEl.addEventListener('touchend',e=>{e.stopPropagation();if(!_lbTouchMoved){e.preventDefault();openIw();}},{passive:false});
-    labelEl.textContent=d.name;
-    labelOverlay=new kakao.maps.CustomOverlay({
-      position:new kakao.maps.LatLng(d.lat,d.lng),
-      content:labelEl,
-      xAnchor:0.5,yAnchor:-0.2,
-      zIndex:9,
-    });
-    if(labelsOn)labelOverlay.setMap(kakaoMap);
-  }
+  // 이름 말풍선 레이블을 CustomOverlay로 마커 아래 항상 준비해두고, "이름 ON/OFF" 토글로 표시 여부만 제어한다.
+  // (예전엔 터치 기기에서만 만들었는데, 그러면 PC에서는 토글을 눌러도 아무 효과가 없어 보이는 문제가 있었음)
+  const _labelColor=groupColor(d);
+  const labelEl=document.createElement('div');
+  labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${_labelColor};background:rgba(255,255,255,0.95);border:1.5px solid ${_labelColor};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer`;
+  labelEl.addEventListener('click',e=>{e.stopPropagation();openIw();});
+  let _lbTouchMoved=false;
+  labelEl.addEventListener('touchstart',()=>{_lbTouchMoved=false;},{passive:true});
+  labelEl.addEventListener('touchmove',()=>{_lbTouchMoved=true;},{passive:true});
+  labelEl.addEventListener('touchend',e=>{e.stopPropagation();if(!_lbTouchMoved){e.preventDefault();openIw();}},{passive:false});
+  labelEl.textContent=d.name;
+  const labelOverlay=new kakao.maps.CustomOverlay({
+    position:new kakao.maps.LatLng(d.lat,d.lng),
+    content:labelEl,
+    xAnchor:0.5,yAnchor:-0.2,
+    zIndex:9,
+  });
+  if(labelsOn)labelOverlay.setMap(kakaoMap);
 
   const iwEl=document.createElement('div');
   iwEl.className='iw-wrap';
@@ -1194,12 +1193,11 @@ function renderPopup(iwEl,idx,d,iw){
     </div>
 
     <div class="hy-section">
-      <div class="hy-label">소화전 종류</div>
+      <div class="hy-label">소화전 종류<span style="color:#dc2626;font-weight:800">(자동판별-수정시 선택)</span></div>
       <div class="hy-toggle-row">
         <button class="hy-tbtn${draft.hydrant_type==='ground'?' on':''}" onclick="hySetType(${idx},'ground')">🔴 지상식</button>
         <button class="hy-tbtn${draft.hydrant_type==='underground'?' on':''}" onclick="hySetType(${idx},'underground')">🔵 지하식</button>
       </div>
-      ${draft._fromExcel?`<div style="font-size:10px;color:#1A5CA8;margin-top:4px">📋 엑셀 데이터에서 자동 판별됨 (다르면 다시 탭해 변경)</div>`:''}
     </div>
 
     <div class="hy-section">
@@ -1343,6 +1341,12 @@ function hyReRender(idx){
 function hySetType(idx,val){
   const d=items[idx];if(!d)return;
   const draft=hyGetDraft(idx,d);
+  // 엑셀에서 자동 판별된 값과 다른 버튼을 누르면 실수 방지용 확인창을 띄운다
+  if(draft._fromExcel&&draft.hydrant_type&&draft.hydrant_type!==val){
+    const label=val==='ground'?'지상식':'지하식';
+    if(!confirm(`${label}으로 바꾸시겠습니까?`))return;
+    draft._fromExcel=false; // 수동으로 확정했으므로 자동판별 상태 해제
+  }
   draft.hydrant_type=(draft.hydrant_type===val)?null:val;
   hyReRender(idx);
   hyMaybeAutoSave(idx);
@@ -1797,8 +1801,11 @@ function fitAll(){
   const bounds=new kakao.maps.LatLngBounds();
   useSet.forEach(d=>bounds.extend(new kakao.maps.LatLng(d.lat,d.lng)));
   if(!bounds.isEmpty())kakaoMap.setBounds(bounds,50);
-  // 안전장치: 그래도 너무 축소되면(전국지도 수준) 레벨을 다시 당겨온다
-  if(kakaoMap.getLevel()>9)kakaoMap.setLevel(9);
+  // 안전장치: 그래도 너무 축소되면 레벨을 다시 당겨온다 (처음 진입 시 좀 더 확대된 느낌으로 시작)
+  if(kakaoMap.getLevel()>5)kakaoMap.setLevel(5);
+  // setBounds는 "최소~최대 좌표의 중간점"을 중심으로 잡아서, 외곽에 몇 개만 떨어져 있으면
+  // 정작 밀집된 무리가 한쪽으로 쏠려 보이는 문제가 있다. 밀집 지역의 중앙값으로 다시 센터를 맞춘다.
+  kakaoMap.setCenter(new kakao.maps.LatLng(medLat,medLng));
 }
 
 /* ══════════ Excel 업로드 / 컬럼 재설정 (공통 ExcelUtil.createReader 사용) ══════════ */
