@@ -372,7 +372,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
             <button class="fbtn" id="sortType" onclick="setSort('type')" style="font-size:12px;padding:3px 9px">식구분</button>
           </div>
         </div>
-        <div><input type="text" id="searchInput" placeholder="이름·주소 검색..." oninput="applyFilter()" style="width:100%;padding:7px 9px"></div>
+        <div><input type="text" id="searchInput" placeholder="이름·주소 검색..." oninput="applyFilterDebounced()" style="width:100%;padding:7px 9px"></div>
       </div>
       <div class="list" id="listEl">
         <div style="text-align:center;color:var(--mt);font-size:12px;padding:30px 12px">
@@ -567,7 +567,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
-const REST_KEY= '679e96ad11a237d821892915c0d0a7d8';
 // ━━ Cloudinary (사진 업로드) — 119hyd-inspec.html과 동일 계정 사용 ━━
 const CLOUDINARY_CLOUD = 'dg4bnj8ad';
 const CLOUDINARY_PRESET = '119hyd_photos';
@@ -613,7 +612,7 @@ let fixLocationIdx=-1; // 위치 수정 모드 중인 항목의 idx (-1이면 �
 let displayIndexOrder=null; // 정렬된 표시 순서(원본 인덱스 배열). null이면 원본 순서 그대로
 
 /* ══════════ Utils & DOM Cache ══════════ */
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 const sleep=Utils.sleep;
 // DOM 캐시 (반복 getElementById 호출 절감)
 const _domCache={};
@@ -850,6 +849,7 @@ async function deleteProject(id,name){
 
 // ━━ 프로젝트 열기 ━━
 async function openProject(proj){
+  resetMapModes();
   currentProject=proj;
   document.getElementById('homeView').style.display='none';
   document.getElementById('mapView').style.display='flex';
@@ -870,8 +870,29 @@ function handleBack(){
   }
 }
 
+// 프로젝트를 떠나거나 다른 프로젝트를 열 때 지도 모드(위치수정·거리재기·로드뷰·현위치추적)를 초기화한다.
+// 안 그러면 이전 프로젝트에서 켜둔 모드가 남아 다음 프로젝트의 클릭을 가로채거나(fixLocationIdx가 옛 인덱스를
+// 가리킴), GPS watch가 백그라운드에서 계속 돌아 배터리를 소모한다.
+function resetMapModes(){
+  // 현위치 추적 종료
+  if(_myLocWatch!==null){try{navigator.geolocation.clearWatch(_myLocWatch);}catch{}_myLocWatch=null;}
+  _myLocMarker?.setMap(null);_myLocMarker=null;
+  _myLocCircle?.setMap(null);_myLocCircle=null;
+  const locBtn=document.getElementById('btnMyLoc');
+  if(locBtn){locBtn.innerHTML='📍<span class="btn-txt"> 현위치</span>';locBtn.classList.remove('on');}
+  // 거리재기 종료
+  if(distMode||distMarkers.length||distLine)clearDist();
+  // 로드뷰 클릭 모드 종료
+  if(rvMode)setRvMode(false);
+  // 위치 수정 모드 종료
+  fixLocationIdx=-1;
+  clearFixPin();
+  if(kakaoMap)kakaoMap.setCursor('');
+}
+
 async function goHome(){
   try{
+    resetMapModes();
     if(kakaoMap){Object.values(overlays).forEach(o=>{o.overlay?.setMap(null);o.iw?.setMap(null);});}
     if(iwOpen){iwOpen.setMap(null);iwOpen=null;}
     // 모바일 상태 초기화
@@ -1065,6 +1086,10 @@ function applyFilter(){
   }
   updateStats();updateGroupCounts();
 }
+// 검색 입력은 키 입력마다 전체 항목 DOM/마커 스캔을 돌리면 항목이 수백 개일 때 버벅이므로,
+// 마지막 입력 후 180ms 뒤에 한 번만 필터를 적용한다 (자동저장의 디바운스와 동일한 취지).
+let _filterTimer=null;
+function applyFilterDebounced(){clearTimeout(_filterTimer);_filterTimer=setTimeout(applyFilter,180);}
 
 // ━━ 통계 ━━
 function updateStats(){
@@ -1197,6 +1222,16 @@ function updateMarkerIcon(idx){
   if(el)el.innerHTML=getMarkerIconHtml(d);
 }
 function addMarker(idx,d){
+  // 같은 idx로 다시 그릴 때(재지오코딩 등) 이전 오버레이/마커를 먼저 정리해 고아 마커·리스너 누수를 막는다
+  const _old=overlays[idx];
+  if(_old){
+    _old.overlay?.setMap(null);
+    _old.iw?.setMap(null);
+    _old.labelOverlay?.setMap(null);
+    if(iwOpen===_old.iw)iwOpen=null;
+    if(clusterer&&_old.clMarker)clusterer.removeMarker(_old.clMarker);
+    delete overlays[idx];
+  }
   const isDone=!!doneMap[d.id];
   const color=groupColor(d);
   const el=document.createElement('div');
@@ -1622,8 +1657,8 @@ function renderPhotoGrid(idx,photos){
   // innerHTML로 전체 렌더 (onclick 인라인 사용)
   const thumbsHtml=photos.map(p=>`
     <div class="iw-photo-thumb">
-      <img src="${p.url}" loading="lazy" onclick="openPhotoViewer('${p.url}','')">
-      <button class="iw-photo-del" onclick="deletePhoto(${idx},'${p.id}','${p.url}')">✕</button>
+      <img src="${esc(p.url)}" loading="lazy" onclick="openPhotoViewer('${esc(p.url)}')">
+      <button class="iw-photo-del" onclick="deletePhoto(${idx},'${esc(p.id)}')">✕</button>
     </div>`).join('');
   grid.innerHTML=thumbsHtml;
 }
@@ -1669,7 +1704,9 @@ async function toggleDone(idx){
 async function updateDoneDate(idx,dateStr){
   const d=items[idx];if(!d||!doneMap[d.id])return;
   const iso=new Date(dateStr).toISOString();
-  await SupabaseUtil.update('hydmap_done',{done_at:iso},{item_id:d.id});
+  try{
+    await SupabaseUtil.update('hydmap_done',{done_at:iso},{item_id:d.id});
+  }catch(e){showToast('날짜 수정 실패: '+(e?.message||''),'err');return;}
   doneMap[d.id].done_at=iso;
   showToast('날짜 수정됨','ok');
 }
@@ -1687,7 +1724,12 @@ async function saveMemoNow(idx){
   const d=items[idx];if(!d||!currentProject)return;
   const el=document.getElementById(`memo-${idx}`);if(!el)return;
   const text=el.value.trim();
-  await SupabaseUtil.upsert('hydmap_memo',{item_id:d.id,inspection_id:currentProject.id,memo:text},'item_id');
+  try{
+    await SupabaseUtil.upsert('hydmap_memo',{item_id:d.id,inspection_id:currentProject.id,memo:text},'item_id');
+  }catch(e){
+    const st=document.getElementById(`memoSt-${idx}`);if(st)st.textContent='⚠️ 저장 실패';
+    showToast('메모 저장 실패: '+(e?.message||''),'err');return;
+  }
   memoMap[d.id]=text;
   const st=document.getElementById(`memoSt-${idx}`);
   if(st){st.textContent='✅ 저장됨';setTimeout(()=>{if(st)st.textContent='';},2000);}
@@ -1696,7 +1738,9 @@ async function saveMemoNow(idx){
 async function deleteMemoNow(idx){
   if(!confirm('메모를 삭제하시겠습니까?'))return;
   const d=items[idx];if(!d)return;
-  await SupabaseUtil.remove('hydmap_memo',{item_id:d.id});
+  try{
+    await SupabaseUtil.remove('hydmap_memo',{item_id:d.id});
+  }catch(e){showToast('메모 삭제 실패: '+(e?.message||''),'err');return;}
   memoMap[d.id]='';
   const el=document.getElementById(`memo-${idx}`);if(el)el.value='';
   const len=document.getElementById(`memoLen-${idx}`);if(len)len.textContent='0/300자';
@@ -1740,23 +1784,18 @@ async function uploadPhotoFile(idx,file){
     showToast(`사진 저장됨 (${kb}KB)`,'ok');
   }catch(e){showToast('업로드 실패: '+e.message,'err');console.error('uploadPhoto error:',e);}
 }
-// 하위 호환 (기존 inline onchange 혹시 남아있을 경우)
-async function uploadPhoto(idx,input){
-  if(!input.files[0])return;
-  await uploadPhotoFile(idx,input.files[0]);
-  input.value='';
-}
-async function deletePhoto(idx,photoId,url){
+async function deletePhoto(idx,photoId){
   if(!confirm('사진을 삭제하시겠습니까? (기록만 삭제되며 Cloudinary 원본은 남습니다)'))return;
   const d=items[idx];if(!d)return;
-  await SupabaseUtil.remove('hydmap_photos',{id:photoId});
+  try{
+    await SupabaseUtil.remove('hydmap_photos',{id:photoId});
+  }catch(e){showToast('사진 삭제 실패: '+(e?.message||''),'err');return;}
   if(photoMap[d.id])photoMap[d.id]=photoMap[d.id].filter(p=>String(p.id)!==String(photoId));
   renderPhotoGrid(idx,photoMap[d.id]||[]);
   showToast('사진 삭제됨','ok');
 }
-function openPhotoViewer(url,caption){
+function openPhotoViewer(url){
   document.getElementById('photoViewerImg').src=url;
-  document.getElementById('photoViewerCaption').textContent=caption;
   document.getElementById('photoViewer').classList.add('open');
 }
 function closePhotoViewer(){document.getElementById('photoViewer').classList.remove('open');}
@@ -1898,17 +1937,21 @@ function startFixLocation(idx){
   }
   hyReRender(idx);
 }
+// 카카오 지오코딩은 REST 키를 클라이언트에 노출하는 대신, 지도 SDK의 services 라이브러리를 쓴다.
+// (SDK를 libraries=services 로 로드해두었고, 이쪽은 도메인 제한이 가능한 JS 키를 사용하므로 키 유출 위험이 없다.)
+let _geocoder=null,_places=null;
+function _getGeocoder(){return _geocoder||(_geocoder=new kakao.maps.services.Geocoder());}
+function _getPlaces(){return _places||(_places=new kakao.maps.services.Places());}
 // 좌표 → 주소 역지오코딩 (지도를 클릭했을 때 그 지점의 주소를 함께 받아오기 위함)
-async function reverseGeocode(lat,lng){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){
-      const data=await r.json();
-      const doc=data.documents?.[0];
-      if(doc)return doc.road_address?.address_name||doc.address?.address_name||null;
-    }
-  }catch{}
-  return null;
+function reverseGeocode(lat,lng){
+  return new Promise(resolve=>{
+    try{
+      _getGeocoder().coord2Address(lng,lat,(result,status)=>{
+        const doc=(status===kakao.maps.services.Status.OK)?result?.[0]:null;
+        resolve(doc?(doc.road_address?.address_name||doc.address?.address_name||null):null);
+      });
+    }catch{resolve(null);}
+  });
 }
 async function applyFixLocation(idx,latLng){
   const d=items[idx];if(!d)return;
@@ -1945,9 +1988,12 @@ async function applyFixLocation(idx,latLng){
     showToast('위치 수정 실패: '+(e?.message||''),'err');
   }
 }
+const _retryInFlight={}; // idx → true : 재지오코딩 진행 중(더블클릭으로 중복 실행/중복 마커 방지)
 async function retryGeocodeItem(idx){
   const d=items[idx];if(!d||!currentProject)return;
   if(!d.address){showToast('주소 정보가 없습니다','err');return;}
+  if(_retryInFlight[idx])return; // 이미 재검색 중이면 무시
+  _retryInFlight[idx]=true;
   showToast('좌표 재검색 중...','');
   try{
     const geo=await geocodeAddr(d.address);
@@ -1959,6 +2005,7 @@ async function retryGeocodeItem(idx){
     updateListItem(idx);
     showToast('✅ 좌표를 찾았습니다','ok');
   }catch(e){showToast('재검색 실패: '+(e?.message||''),'err');}
+  finally{delete _retryInFlight[idx];}
 }
 function setActive(idx){
   if(activeIdx>=0)document.getElementById(`item-${activeIdx}`)?.classList.remove('active');
@@ -2098,8 +2145,8 @@ async function _onExcelConfirm(headers,rows,mapping){
       address:String(mapping.addr!=null?r[mapping.addr]:'').replace(/^\s+|\s+$/g,'').replace(/\s+/g,' '),
       group_name:mapping.group!=null?String(r[mapping.group]||'').trim():null,
       extra:Object.keys(extraObj).length?extraObj:null,
-      lat:(excelLat&&excelLng)?excelLat:null,
-      lng:(excelLat&&excelLng)?excelLng:null,
+      lat:(excelLat!=null&&excelLng!=null)?excelLat:null,
+      lng:(excelLat!=null&&excelLng!=null)?excelLng:null,
     };
   }).filter(d=>d.name);
 
@@ -2223,19 +2270,25 @@ function extractCoreRoadAddress(addr){
   const core=`${m[1]} ${m[2]}`.trim();
   return core===addr.trim()?null:core;
 }
-async function kakaoAddrSearch(q){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
-  }catch{}
-  return null;
+function kakaoAddrSearch(q){
+  return new Promise(resolve=>{
+    try{
+      _getGeocoder().addressSearch(q,(result,status)=>{
+        if(status===kakao.maps.services.Status.OK&&result?.[0])resolve({lat:+result[0].y,lng:+result[0].x});
+        else resolve(null);
+      },{size:1});
+    }catch{resolve(null);}
+  });
 }
-async function kakaoKeywordSearch(q){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
-  }catch{}
-  return null;
+function kakaoKeywordSearch(q){
+  return new Promise(resolve=>{
+    try{
+      _getPlaces().keywordSearch(q,(result,status)=>{
+        if(status===kakao.maps.services.Status.OK&&result?.[0])resolve({lat:+result[0].y,lng:+result[0].x});
+        else resolve(null);
+      },{size:1});
+    }catch{resolve(null);}
+  });
 }
 // 카카오가 다 실패했을 때 최종 폴백 (OpenStreetMap 지오코딩, 무료/무인증)
 async function nominatimSearch(q){
@@ -2346,14 +2399,20 @@ async function searchMap(){
   res.innerHTML='<div class="sri" style="cursor:default">검색 중...</div>';res.style.display='block';
   let results=[];
   try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=10`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    const d=await r.json();
-    if(d.documents?.length)results=d.documents.map(doc=>({name:doc.place_name,addr:doc.road_address_name||doc.address_name,lat:+doc.y,lng:+doc.x}));
-    else{
-      const r2=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=10`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-      const d2=await r2.json();
-      results=d2.documents?.map(doc=>({name:doc.address_name,addr:doc.road_address?.address_name||'',lat:+doc.y,lng:+doc.x}))||[];
-    }
+    results=await new Promise(resolve=>{
+      _getPlaces().keywordSearch(q,(data,status)=>{
+        if(status===kakao.maps.services.Status.OK&&data?.length){
+          resolve(data.map(doc=>({name:doc.place_name,addr:doc.road_address_name||doc.address_name,lat:+doc.y,lng:+doc.x})));
+        }else{
+          // 장소 검색 결과가 없으면 주소 검색으로 폴백
+          _getGeocoder().addressSearch(q,(data2,status2)=>{
+            if(status2===kakao.maps.services.Status.OK&&data2?.length)
+              resolve(data2.map(doc=>({name:doc.address_name,addr:doc.road_address?.address_name||'',lat:+doc.y,lng:+doc.x})));
+            else resolve([]);
+          },{size:10});
+        }
+      },{size:10});
+    });
   }catch{}
   if(!results.length){res.innerHTML='<div class="sri" style="cursor:default;color:var(--mt)">검색 결과 없음</div>';return;}
   res.innerHTML='';
