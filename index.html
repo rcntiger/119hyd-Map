@@ -2429,7 +2429,7 @@ function openRvAt(latLng){
   document.getElementById('rvPanel').style.display='flex';
   document.getElementById('rvHint').textContent=`${latLng.getLat().toFixed(5)}, ${latLng.getLng().toFixed(5)}`;
   const tb=document.getElementById('mapToolbar');if(tb)tb.style.top='56px';
-  const tbTop=document.getElementById('mapToolbarTop');if(tbTop)tbTop.style.display='none';
+  const tbTop=document.getElementById('mapToolbarTop');if(tbTop)tbTop.style.setProperty('display','none','important');
   if(!rvInstance)rvInstance=new kakao.maps.Roadview(document.getElementById('rvMap'));
   if(!rvMinimapInst){
     rvMinimapInst=new kakao.maps.Map(document.getElementById('rvMinimapInner'),{center:latLng,level:3});
@@ -2447,7 +2447,7 @@ function openRvFromPopup(latLng){lastIw=iwOpen;closeIw();openRvAt(latLng);}
 function closeRv(){
   document.getElementById('rvPanel').style.display='none';setRvMode(false);
   const tb=document.getElementById('mapToolbar');if(tb)tb.style.top='190px';
-  const tbTop=document.getElementById('mapToolbarTop');if(tbTop)tbTop.style.display='flex';
+  const tbTop=document.getElementById('mapToolbarTop');if(tbTop)tbTop.style.removeProperty('display');
   minimapOn=false;document.getElementById('rvMinimap').style.display='none';
   const btn=document.getElementById('btnMinimap');if(btn){btn.style.background='';btn.style.color='';}
   if(lastIw&&kakaoMap){lastIw.setMap(kakaoMap);iwOpen=lastIw;lastIw=null;}
