@@ -52,6 +52,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .section-title{font-size:13px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.08em}
 .project-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .project-card{background:var(--sur);border:1px solid var(--bd2);border-radius:var(--r2);padding:16px;cursor:pointer;transition:all .15s;position:relative}
+.project-card-updown{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.project-card-updown button{width:26px;height:22px;border:1px solid var(--bd2);border-radius:5px;background:var(--sur2);color:var(--mt);font-size:11px;cursor:pointer}
+.project-card-updown button:hover:not(:disabled){background:var(--ac);color:#fff;border-color:var(--ac)}
+.project-card-updown button:disabled{opacity:.3;cursor:default}
 .project-card:hover{border-color:var(--ac);background:var(--sur2)}
 .project-card-name{font-size:14px;font-weight:700;margin-bottom:4px}
 .project-card-desc{font-size:11px;color:var(--mt);margin-bottom:10px;line-height:1.5}
@@ -173,7 +177,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 /* 마커 */
 
 /* ═══ Marker ═══ */
-.kk-marker{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.6);cursor:pointer;transition:all .2s;background:#ef4444}
+.kk-marker{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.6);cursor:pointer;transition:all .2s;background:#ef4444;display:flex;align-items:center;justify-content:center}
 .kk-marker:hover{transform:scale(1.5)}
 /* 마커 툴팁 */
 .mk-tooltip{position:fixed;background:rgba(15,23,42,.92);color:#f1f5f9;font-size:11px;font-weight:600;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:9999;opacity:0;transition:opacity .15s;transform:translateX(-50%)}
@@ -211,6 +215,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .iw-rv-inline{flex-shrink:0;padding:2px 7px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#475569;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
 .hy-fixloc-btn{flex:1;padding:6px 4px;border:1px dashed #93c5fd;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .hy-fixloc-full{width:100%;display:block;margin-bottom:8px;font-size:11px;white-space:normal}
+.hy-fixloc-mini{min-width:200px;text-align:center}
+.hy-fixloc-mini-title{font-size:13px;font-weight:800;color:#0f172a;margin-bottom:4px}
+.hy-fixloc-mini-hint{font-size:11px;color:#64748b;margin-bottom:10px}
 .hy-fixloc-btn.on{background:#2563eb;color:#fff;border-style:solid;animation:hy-pulse 1s infinite}
 @keyframes hy-pulse{0%,100%{opacity:1}50%{opacity:.6}}
 .hy-locbtn-row{display:flex;gap:6px;margin-bottom:8px}
@@ -248,6 +255,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 /* ── 소화전 점검 입력 카드 ── */
 .hy-status-badge{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin:2px 0 8px}
 .hy-section{margin-bottom:10px}
+.hy-collapsible-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:2px}
+.hy-collapsible{margin-bottom:8px;flex:1 1 calc(50% - 4px);min-width:0}
+.hy-collapsible.open{flex:1 1 100%}
+.hy-collapse-btn{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#334155;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;box-sizing:border-box}
+.hy-collapse-btn.open{border-color:#2563eb;background:#eff6ff;border-bottom-left-radius:0;border-bottom-right-radius:0;flex-direction:row;align-items:center;justify-content:space-between}
+.hy-collapse-val{color:#2563eb;font-weight:800;font-size:11px}
+.hy-collapse-body{border:1.5px solid #2563eb;border-top:none;border-bottom-left-radius:8px;border-bottom-right-radius:8px;padding:10px 12px;background:#fff}
 .hy-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
 .hy-req{color:#ef4444;font-size:9px;text-transform:none}
 .hy-toggle-row{display:flex;gap:5px;flex-wrap:wrap}
@@ -353,8 +367,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
           <div class="ptitle" style="margin:0;font-size:15px">🔍 소화전 검색</div>
           <div style="display:flex;gap:4px">
-            <button class="fbtn" id="sortName" onclick="setSort('name')" style="font-size:10px;padding:2px 7px">이름</button>
-            <button class="fbtn" id="sortAddr" onclick="setSort('addr')" style="font-size:10px;padding:2px 7px">주소</button>
+            <button class="fbtn" id="sortName" onclick="setSort('name')" style="font-size:12px;padding:3px 9px">이름</button>
+            <button class="fbtn" id="sortAddr" onclick="setSort('addr')" style="font-size:12px;padding:3px 9px">주소</button>
+            <button class="fbtn" id="sortType" onclick="setSort('type')" style="font-size:12px;padding:3px 9px">식구분</button>
           </div>
         </div>
         <div><input type="text" id="searchInput" placeholder="이름·주소 검색..." oninput="applyFilter()" style="width:100%;padding:7px 9px"></div>
@@ -647,6 +662,8 @@ async function loadProjects(){
   try{
     const projs=await SupabaseUtil.select('hydmap_projects',{order:{column:'created_at',ascending:false}});
     if(!Array.isArray(projs))throw new Error('응답 형식 오류');
+    // sort_order가 있으면 그 순서(작을수록 위)로, 없는(0/null) 항목들은 기존 최신순 유지
+    projs.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
     // 먼저 목록 표시 (건수 없이)
     projs.forEach(p=>{p._total='-';p._done='-';});
     renderProjects(projs);
@@ -688,11 +705,16 @@ function renderProjects(list){
   }
   if(empty)empty.style.display='none';
   const frag=document.createDocumentFragment();
-  list.forEach(p=>{
+  list.forEach((p,i)=>{
     const card=document.createElement('div');
     card.className='project-card';
     card.id='pcard-'+p.id;
+    card.dataset.id=p.id;
     card.innerHTML=`
+      <div class="project-card-updown">
+        <button onclick="event.stopPropagation();moveProject('${p.id}',-1)" title="위로" ${i===0?'disabled':''}>▲</button>
+        <button onclick="event.stopPropagation();moveProject('${p.id}',1)" title="아래로" ${i===list.length-1?'disabled':''}>▼</button>
+      </div>
       <button class="project-card-del" onclick="event.stopPropagation();deleteProject('${p.id}','${esc(p.name)}')" title="삭제">✕</button>
       <button class="project-card-edit" onclick="event.stopPropagation();showEditModal('${p.id}')" title="수정">✏️</button>
       <div class="project-card-name">${esc(p.name)}</div>
@@ -703,6 +725,19 @@ function renderProjects(list){
   });
   grid.appendChild(frag);
 }
+// 드래그가 잘 안 될 때를 위한 대안: 버튼으로 한 칸씩 순서 이동
+async function moveProject(id,dir){
+  const i=projectList.findIndex(x=>String(x.id)===String(id));
+  const j=i+dir;
+  if(i<0||j<0||j>=projectList.length)return;
+  [projectList[i],projectList[j]]=[projectList[j],projectList[i]];
+  renderProjects(projectList);
+  try{
+    await Promise.all(projectList.map((p,idx)=>SupabaseUtil.update('hydmap_projects',{sort_order:idx},{id:p.id})));
+    projectList.forEach((p,idx)=>{p.sort_order=idx;});
+  }catch(e){showToast('순서 저장 실패: '+e.message,'err');}
+}
+
 function showCreateModal(){document.getElementById('projName').value='';document.getElementById('projDesc').value='';document.getElementById('projExpire').value='';showModal('createModal');}
 
 function showEditModal(id){
@@ -801,7 +836,7 @@ async function openProject(proj){
   document.getElementById('homeView').style.display='none';
   document.getElementById('mapView').style.display='flex';
   document.getElementById('mapHeaderTitle').textContent=proj.name;
-  items=[];overlays={};doneMap={};memoMap={};photoMap={};hydrantMap={};hyDraft={};groups=[];filterGroupVal='';filterText='';displayIndexOrder=null;sortMode='';
+  items=[];overlays={};doneMap={};memoMap={};photoMap={};hydrantMap={};hyDraft={};hyExpanded={};groups=[];filterGroupVal='';filterText='';displayIndexOrder=null;sortMode='';
   document.getElementById('listEl').innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:30px">지도 초기화 중...</div>';
   const dateEl=document.getElementById('inspDateGlobal');
   if(dateEl&&!dateEl.value)dateEl.value=new Date().toISOString().slice(0,10); // 안전장치: 비어있으면 오늘 날짜로
@@ -919,10 +954,12 @@ function setSort(mode){
     sortMode='';
     document.getElementById('sortName')?.classList.remove('active');
     document.getElementById('sortAddr')?.classList.remove('active');
+    document.getElementById('sortType')?.classList.remove('active');
   }else{
     sortMode=mode;
     document.getElementById('sortName')?.classList.toggle('active',mode==='name');
     document.getElementById('sortAddr')?.classList.toggle('active',mode==='addr');
+    document.getElementById('sortType')?.classList.toggle('active',mode==='type');
   }
   // ⚠ items 배열 자체를 sort()하면 overlays(인덱스 기반)와 매핑이 깨져서
   //    "정렬 후 클릭하면 엉뚱한 카드가 열리는" 버그가 생긴다.
@@ -931,6 +968,14 @@ function setSort(mode){
     displayIndexOrder=items.map((d,i)=>i).sort((ia,ib)=>items[ia].name.localeCompare(items[ib].name,'ko'));
   }else if(sortMode==='addr'){
     displayIndexOrder=items.map((d,i)=>i).sort((ia,ib)=>(items[ia].address||'').localeCompare(items[ib].address||'','ko'));
+  }else if(sortMode==='type'){
+    // 지상식 → 지하식 → 미확인 순으로 묶어서 정렬
+    const rank=i=>{
+      const d=items[i];
+      const t=hydrantMap[d.id]?.hydrant_type||getExcelHydrantType(d);
+      return t==='ground'?0:t==='underground'?1:2;
+    };
+    displayIndexOrder=items.map((d,i)=>i).sort((ia,ib)=>rank(ia)-rank(ib)||items[ia].name.localeCompare(items[ib].name,'ko'));
   }else{
     displayIndexOrder=null;
   }
@@ -1012,7 +1057,7 @@ function initKakaoMap(){
         }
         kakao.maps.event.addListener(kakaoMap,'click',(e)=>{
           document.getElementById('mapSearchResults').style.display='none';
-          if(fixLocationIdx>=0){applyFixLocation(fixLocationIdx,e.latLng);return;}
+          if(fixLocationIdx>=0){confirmAndApplyFixLocation(fixLocationIdx,e.latLng);return;}
           if(rvMode){openRvAt(e.latLng);setRvMode(false);return;}
           if(distMode){distPath.push(e.latLng);addDistMarker(e.latLng);updateDistLine();}
         });
@@ -1080,6 +1125,22 @@ function getTransparentMarkerImage(){
   }
   return _transparentMarkerImg;
 }
+// 지상식/지하식 구분 아이콘 (마커 안에 표시). 종류를 알 수 없으면 빈 원 그대로 둔다.
+const HY_ICON_GROUND=`<svg viewBox="0 0 24 24" width="65%" height="65%" style="pointer-events:none;display:block;margin:auto"><path fill="#fff" d="M9 3h6v2h1a1 1 0 0 1 1 1v1h-1.2l.9 1.8-1.8.9L13 7.5V9h-2V7.5l-1.9 2.2-1.8-.9L8.2 7H7V6a1 1 0 0 1 1-1h1V3zM8 11h8v9a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-9z"/></svg>`;
+const HY_ICON_UNDER=`<svg viewBox="0 0 24 24" width="65%" height="65%" style="pointer-events:none;display:block;margin:auto"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="2.6" fill="#fff"/><line x1="12" y1="2.8" x2="12" y2="6.4" stroke="#fff" stroke-width="1.8"/><line x1="12" y1="17.6" x2="12" y2="21.2" stroke="#fff" stroke-width="1.8"/><line x1="2.8" y1="12" x2="6.4" y2="12" stroke="#fff" stroke-width="1.8"/><line x1="17.6" y1="12" x2="21.2" y2="12" stroke="#fff" stroke-width="1.8"/></svg>`;
+function getMarkerIconHtml(d){
+  const type=hydrantMap[d.id]?.hydrant_type||getExcelHydrantType(d);
+  if(type==='ground')return HY_ICON_GROUND;
+  if(type==='underground')return HY_ICON_UNDER;
+  return '';
+}
+// 점검 저장/위치 수정 등으로 종류가 바뀌었을 때 마커 아이콘을 다시 그린다
+function updateMarkerIcon(idx){
+  const d=items[idx],o=overlays[idx];
+  if(!d||!o||!o.overlay)return;
+  const el=o.overlay.getContent&&o.overlay.getContent();
+  if(el)el.innerHTML=getMarkerIconHtml(d);
+}
 function addMarker(idx,d){
   const isDone=!!doneMap[d.id];
   const color=groupColor(d);
@@ -1087,6 +1148,7 @@ function addMarker(idx,d){
   el.className=`kk-marker ${groupCls(d)}${isDone?' done':''}`;
   el.id='mk-'+idx;
   el.style.position='relative';
+  el.innerHTML=getMarkerIconHtml(d);
 
   // 툴팁: body에 단 하나의 공유 툴팁 요소를 사용 (stacking context 탈출)
   el.addEventListener('mouseenter',()=>{
@@ -1177,6 +1239,18 @@ function renderPopup(iwEl,idx,d,iw){
   const st=hyStatusInfo(hydrantMap[d.id]);
   const savedRec=hydrantMap[d.id];
 
+  // 위치 수정 모드 중에는 지도가 최대한 넓게 보이도록 카드를 최소화한다
+  // (전체 카드가 열려있으면 모바일에서 지정하려는 지점을 가려서 탭하기 어려움)
+  if(fixLocationIdx===idx){
+    iwEl.innerHTML=`
+      <div class="hy-fixloc-mini">
+        <div class="hy-fixloc-mini-title">📍 ${esc(d.name)} 위치 수정 중</div>
+        <div class="hy-fixloc-mini-hint">지도를 탭하거나 우측 "현위치" 버튼을 누르세요</div>
+        <button class="hy-fixloc-btn hy-fixloc-full on" onclick="startFixLocation(${idx})">❌ 취소</button>
+      </div>`;
+    return;
+  }
+
   iwEl.innerHTML=`
     <div class="iw-header">
       <span class="iw-team-badge${isDone?' done':''}" style="background:${color}22;color:${color}">${isDone?'점검 완료':esc(d.group_name||'점검 대상')}</span>
@@ -1189,8 +1263,8 @@ function renderPopup(iwEl,idx,d,iw){
     </div>
     <div class="iw-name">${esc(d.name)}</div>
     ${d.address?`<div class="iw-addr-row"><span class="iw-addr">📍 ${esc((d.address||'').replace(/^서울특별시\s*/,''))}</span><button class="iw-rv-inline" onclick="openRvFromPopup(new kakao.maps.LatLng(${d.lat},${d.lng}))">🔭 로드뷰</button></div>`:''}
-    <div class="iw-latlng-row">🧭 위도 ${d.lat?d.lat.toFixed(6):'-'}, 경도 ${d.lng?d.lng.toFixed(6):'-'}${d.loc_fixed_at?` <span class="iw-locfixed-badge">📍 위치 수정됨 · ${new Date(d.loc_fixed_at).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})}</span>`:''}</div>
-    <button class="hy-fixloc-btn hy-fixloc-full${fixLocationIdx===idx?' on':''}" onclick="startFixLocation(${idx})">${fixLocationIdx===idx?'❌ 취소 (지도를 클릭하거나 현위치 버튼을 누르세요)':'📍 위치 수정'}</button>
+    <div class="iw-latlng-row">🧭 위도 ${d.lat?d.lat.toFixed(6):'-'}, 경도 ${d.lng?d.lng.toFixed(6):'-'}${d.loc_fixed_at?` <span class="iw-locfixed-badge">📍 ${(dt=>`${String(dt.getFullYear()).slice(-2)}.${dt.getMonth()+1}.${dt.getDate()}`)(new Date(d.loc_fixed_at))} 수정</span>`:''}</div>
+    <button class="hy-fixloc-btn hy-fixloc-full" onclick="startFixLocation(${idx})">📍 위치 수정</button>
     ${extraStr?`<div class="iw-extra">${esc(extraStr)}</div>`:''}
     <div class="iw-divider"></div>
 
@@ -1207,41 +1281,36 @@ function renderPopup(iwEl,idx,d,iw){
       </div>
     </div>
 
-    <div class="hy-section">
-      <div class="hy-label">도색 상태</div>
-      <div class="hy-toggle-row">
-        <button class="hy-tbtn${draft.paint==='yes'?' on':''}" onclick="hySetField(${idx},'paint','yes')">양호</button>
-        <button class="hy-tbtn${draft.paint==='mid'?' on':''}" onclick="hySetField(${idx},'paint','mid')">보통</button>
-        <button class="hy-tbtn${draft.paint==='no'?' on':''}" onclick="hySetField(${idx},'paint','no')">재도색</button>
-      </div>
+    <div class="hy-collapsible-row">
+      ${hyCollapsibleField(idx,'paint','🎨 도색상태',PAINT_LABEL,draft.paint,`
+        <div class="hy-toggle-row">
+          <button class="hy-tbtn${draft.paint==='yes'?' on':''}" onclick="hySetField(${idx},'paint','yes')">양호</button>
+          <button class="hy-tbtn${draft.paint==='mid'?' on':''}" onclick="hySetField(${idx},'paint','mid')">보통</button>
+          <button class="hy-tbtn${draft.paint==='no'?' on':''}" onclick="hySetField(${idx},'paint','no')">재도색</button>
+        </div>`)}
+
+      ${draft.hydrant_type==='underground'?hyCollapsibleField(idx,'insul','🧊 보온상태',INSUL_LABEL,draft.insul,`
+        <div class="hy-toggle-row">
+          <button class="hy-tbtn${draft.insul==='yes'?' on':''}" onclick="hySetField(${idx},'insul','yes')">설치됨</button>
+          <button class="hy-tbtn${draft.insul==='mid'?' on':''}" onclick="hySetField(${idx},'insul','mid')">불필요</button>
+          <button class="hy-tbtn${draft.insul==='no'?' on':''}" onclick="hySetField(${idx},'insul','no')">재설치</button>
+        </div>`):''}
+
+      ${draft.hydrant_type==='ground'?hyCollapsibleField(idx,'protect','🛡️ 보호틀·노면표시',null,(draft.protect||draft.roadmark)?`${PROTECT_LABEL[draft.protect]||''}${draft.protect&&draft.roadmark?' · ':''}${draft.roadmark||''}`:'',`
+        <div class="hy-label">보호틀</div>
+        <div class="hy-toggle-row">
+          <button class="hy-tbtn${draft.protect==='yes'?' on':''}" onclick="hySetField(${idx},'protect','yes')">설치</button>
+          <button class="hy-tbtn${draft.protect==='no'?' on':''}" onclick="hySetField(${idx},'protect','no')">미설치</button>
+        </div>
+        <div class="hy-label" style="margin-top:7px">적색 노면 표시</div>
+        <select class="hy-select" onchange="hySetField(${idx},'roadmark',this.value)">
+          <option value="">선택</option>
+          <option value="미설치"${draft.roadmark==='미설치'?' selected':''}>미설치</option>
+          <option value="연석표시형"${draft.roadmark==='연석표시형'?' selected':''}>연석표시형</option>
+          <option value="적색복선형"${draft.roadmark==='적색복선형'?' selected':''}>적색복선형</option>
+          <option value="연석·적색복선"${draft.roadmark==='연석·적색복선'?' selected':''}>연석·적색복선 모두</option>
+        </select>`):''}
     </div>
-
-    ${draft.hydrant_type==='underground'?`
-    <div class="hy-section">
-      <div class="hy-label">보온 상태</div>
-      <div class="hy-toggle-row">
-        <button class="hy-tbtn${draft.insul==='yes'?' on':''}" onclick="hySetField(${idx},'insul','yes')">설치됨</button>
-        <button class="hy-tbtn${draft.insul==='mid'?' on':''}" onclick="hySetField(${idx},'insul','mid')">불필요</button>
-        <button class="hy-tbtn${draft.insul==='no'?' on':''}" onclick="hySetField(${idx},'insul','no')">재설치</button>
-      </div>
-    </div>`:''}
-
-    ${draft.hydrant_type==='ground'?`
-    <div class="hy-section">
-      <div class="hy-label">보호틀</div>
-      <div class="hy-toggle-row">
-        <button class="hy-tbtn${draft.protect==='yes'?' on':''}" onclick="hySetField(${idx},'protect','yes')">설치</button>
-        <button class="hy-tbtn${draft.protect==='no'?' on':''}" onclick="hySetField(${idx},'protect','no')">미설치</button>
-      </div>
-      <div class="hy-label" style="margin-top:7px">적색 노면 표시</div>
-      <select class="hy-select" onchange="hySetField(${idx},'roadmark',this.value)">
-        <option value="">선택</option>
-        <option value="미설치"${draft.roadmark==='미설치'?' selected':''}>미설치</option>
-        <option value="연석표시형"${draft.roadmark==='연석표시형'?' selected':''}>연석표시형</option>
-        <option value="적색복선형"${draft.roadmark==='적색복선형'?' selected':''}>적색복선형</option>
-        <option value="연석·적색복선"${draft.roadmark==='연석·적색복선'?' selected':''}>연석·적색복선 모두</option>
-      </select>
-    </div>`:''}
 
     <div class="hy-section" style="margin-bottom:0">
       <div class="hy-label">사용가부 <span class="hy-req">필수</span></div>
@@ -1301,6 +1370,41 @@ function renderPopup(iwEl,idx,d,iw){
 }
 
 /* ══════════ 소화전 점검 입력 (정보카드 내) ══════════ */
+// ━━ 정보카드 컴팩트 UX: 선택사항(도색/보온/보호틀) 항목을 접이식으로 ━━
+// 필수(종류·사용가부)만 항상 펼쳐두고, 나머지는 "입력" 버튼 → 탭하면 펼쳐지고
+// 값을 고르면 자동으로 다시 접혀서, 모바일에서 카드가 화면을 다 차지하지 않도록 한다.
+let hyExpanded={}; // key: `${idx}:${field}` → true면 펼침
+const PAINT_LABEL={yes:'양호',mid:'보통',no:'재도색'};
+const INSUL_LABEL={yes:'설치됨',mid:'불필요',no:'재설치'};
+const PROTECT_LABEL={yes:'설치',no:'미설치'};
+function hyToggleSection(idx,field){
+  const key=`${idx}:${field}`;
+  hyExpanded[key]=!hyExpanded[key];
+  hyReRender(idx);
+}
+// summaryText: 이미 선택된 값이 있으면 그 값을 라벨로 보여주고, 없으면 "입력"만 표시
+function hyCollapsibleField(idx,field,title,labelMap,rawValue,expandedHtml){
+  const key=`${idx}:${field}`;
+  const isOpen=!!hyExpanded[key];
+  const summary=labelMap?(labelMap[rawValue]||''):(rawValue||'');
+  if(!isOpen){
+    return `
+    <div class="hy-section hy-collapsible">
+      <button class="hy-collapse-btn" onclick="hyToggleSection(${idx},'${field}')">
+        <span>${title}</span>
+        <span class="hy-collapse-val">${summary?esc(summary):'입력'} ▾</span>
+      </button>
+    </div>`;
+  }
+  return `
+    <div class="hy-section hy-collapsible open">
+      <button class="hy-collapse-btn open" onclick="hyToggleSection(${idx},'${field}')">
+        <span>${title}</span>
+        <span class="hy-collapse-val">접기 ▴</span>
+      </button>
+      <div class="hy-collapse-body">${expandedHtml}</div>
+    </div>`;
+}
 function hyStatusInfo(rec){
   const r=rec?.result;
   if(!r)return{label:'🔲 미점검',bg:'#94a3b822',fg:'#64748b'};
@@ -1363,6 +1467,11 @@ function hySetField(idx,field,val){
   const draft=hyGetDraft(idx,d);
   if(field==='defect_detail'){draft.defect_detail=val;return;}
   draft[field]=(draft[field]===val)?null:val;
+  // 값 하나를 고르면 해당 접이식 섹션은 자동으로 접어서 카드를 다시 컴팩트하게 만든다.
+  // (단, 보호틀·노면표시는 항목이 2개라 하나 고르자마자 접으면 나머지를 못 고르니 자동 접힘 제외)
+  if(field==='paint'||field==='insul'){
+    hyExpanded[`${idx}:${field}`]=false;
+  }
   hyReRender(idx);
   hyMaybeAutoSave(idx);
 }
@@ -1430,6 +1539,7 @@ async function hySaveNow(idx){
     if(!_saveQueued[idx])delete hyDraft[idx];
     showToast('✅ 자동 저장됨','ok');
     hyReRender(idx);
+    updateMarkerIcon(idx);
     updateStats();
     updateListItem(idx);
   }catch(e){showToast('저장 실패: '+(e?.message||''),'err');}
@@ -2198,6 +2308,32 @@ function mapZoomOut(){if(kakaoMap)kakaoMap.setLevel(kakaoMap.getLevel()+1,{anima
 /* ══════════ 현위치 ══════════ */
 let _myLocMarker=null,_myLocCircle=null,_myLocWatch=null;
 
+// 위치 수정 중 지도를 클릭(또는 현위치)하면, 그 지점에 핀을 잠깐 찍어서 보여주고
+// "이 위치로 저장할까요?" 확인을 받은 뒤에만 실제로 저장한다 (실수로 엉뚱한 곳을 눌러도 되돌리기 쉽게).
+let _fixPinOverlay=null;
+function showFixPin(latLng){
+  clearFixPin();
+  const el=document.createElement('div');
+  el.style.cssText='font-size:32px;line-height:1;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5));animation:hy-pulse .6s ease-in-out infinite alternate;pointer-events:none';
+  el.textContent='📍';
+  _fixPinOverlay=new kakao.maps.CustomOverlay({position:latLng,content:el,yAnchor:1,zIndex:300});
+  _fixPinOverlay.setMap(kakaoMap);
+}
+function clearFixPin(){
+  if(_fixPinOverlay){_fixPinOverlay.setMap(null);_fixPinOverlay=null;}
+}
+function confirmAndApplyFixLocation(idx,latLng){
+  showFixPin(latLng);
+  const ok=confirm('📍 이 위치로 저장할까요?');
+  if(ok){
+    clearFixPin();
+    applyFixLocation(idx,latLng);
+  }
+  // 취소하면 핀만 지우고 위치 수정 모드는 계속 유지 (다시 클릭해서 재시도 가능)
+  else{
+    clearFixPin();
+  }
+}
 function toggleMyLocation(){
   // 위치 수정 모드 중이면, 일반 위치추적 대신 "현재 위치로 바로 수정"으로 동작
   if(fixLocationIdx>=0){
@@ -2207,7 +2343,7 @@ function toggleMyLocation(){
     navigator.geolocation.getCurrentPosition(
       pos=>{
         const {latitude:lat,longitude:lng}=pos.coords;
-        applyFixLocation(idx,new kakao.maps.LatLng(lat,lng));
+        confirmAndApplyFixLocation(idx,new kakao.maps.LatLng(lat,lng));
       },
       err=>{showToast('현재 위치를 가져오지 못했습니다: '+(err?.message||''),'err');},
       {enableHighAccuracy:true,timeout:10000}
