@@ -118,6 +118,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .list::-webkit-scrollbar{width:3px}
 .list::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
 .item{padding:7px 10px;border-radius:var(--r);margin-bottom:3px;cursor:pointer;transition:all .12s;display:flex;align-items:flex-start;gap:7px;border:1px solid transparent}
+.item .pick-chk{margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--ac);cursor:pointer}
+.fbtn.active{background:var(--ac);color:#fff;border-color:var(--ac)}
 .item:hover{background:var(--sur2)}.item.active{background:rgba(47,129,247,.1);border-color:rgba(47,129,247,.25)}.item.hidden{display:none}
 .item.done-item .iname{color:var(--lo)}
 .item.done-item .done-badge{display:inline-flex}
@@ -390,7 +392,30 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
             <button class="fbtn" id="sortType" onclick="setSort('type')" style="font-size:12px;padding:3px 9px">식구분</button>
           </div>
         </div>
-        <div><input type="text" id="searchInput" placeholder="이름·주소 검색..." oninput="applyFilter()" style="width:100%;padding:7px 9px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="searchInput" placeholder="이름·주소 검색..." oninput="applyFilter()" style="flex:1;min-width:0;padding:7px 9px">
+          <button class="fbtn" id="pickModeBtn" onclick="togglePickMode()" title="여러 개 선택해서 지도에 표시" style="font-size:12px;padding:6px 10px;white-space:nowrap">☑ 선택</button>
+        </div>
+        <!-- 선택 모드일 때: 선택 개수 + 지도에 표시/취소 버튼 -->
+        <div id="pickBar" style="display:none;flex-direction:column;gap:6px;margin-top:8px;padding:7px 9px;border-radius:6px;background:rgba(47,129,247,.1);border:1px solid rgba(47,129,247,.3)">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span id="pickCount" style="font-size:12px;font-weight:700;color:var(--ac);flex:1">0개 선택됨</span>
+            <button class="fbtn" onclick="applyPickedFilter()" style="font-size:11.5px;padding:4px 9px;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:700">🗺 지도에 표시</button>
+            <button class="fbtn" onclick="togglePickMode()" style="font-size:11.5px;padding:4px 9px">취소</button>
+          </div>
+          <div style="display:flex;gap:6px;font-size:11px;color:var(--mt)">
+            <span style="flex:1;line-height:1.4">💡 검색/그룹으로 먼저 좁힌 뒤 "보이는 전체"를 누르면 한 번에 담깁니다</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="fbtn" onclick="pickSelectAllVisible()" style="flex:1;font-size:11.5px;padding:5px 9px">☑ 보이는 전체 선택</button>
+            <button class="fbtn" onclick="pickClearAll()" style="flex:1;font-size:11.5px;padding:5px 9px">☐ 전체 해제</button>
+          </div>
+        </div>
+        <!-- 선택 표시가 적용된 상태: 해제 버튼 -->
+        <div id="pickedActivePill" style="display:none;align-items:center;gap:6px;margin-top:8px;padding:7px 9px;border-radius:6px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3)">
+          <span id="pickedActiveText" style="font-size:12px;font-weight:700;color:var(--lo);flex:1"></span>
+          <button class="fbtn" onclick="clearPickedFilter()" style="font-size:11.5px;padding:4px 9px">전체 보기로</button>
+        </div>
       </div>
       <div class="list" id="listEl">
         <div style="text-align:center;color:var(--mt);font-size:12px;padding:30px 12px">
@@ -582,7 +607,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.2.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v1.3.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -632,6 +657,10 @@ function _hyMapView(key,emptyVal){
 let doneMap=_hyMapView('done'),memoMap=_hyMapView('memo',''),photoMap=_hyMapView('photos'),hydrantMap=_hyMapView('hydrant');
 let hyDraft={}; // 카드에서 저장 전 임시 편집 상태 (idx 기준)
 let groups=[],filterGroupVal='',filterText='';
+// ── 개별 선택 후 지도에 표시 ──
+let pickMode=false;          // 선택 모드 on/off (목록에 체크박스 표시)
+let pickedIds=new Set();     // 선택된 item id들 (선택 모드 중 담기는 중)
+let pickedFilterActive=false;// "지도에 표시" 눌러서 실제로 필터가 적용된 상태
 let labelsOn=false; // 마커 아래 이름표(풍선) 표시 여부 (기본 OFF)
 let fixLocationIdx=-1; // 위치 수정 모드 중인 항목의 idx (-1이면 비활성)
 let displayIndexOrder=null; // 정렬된 표시 순서(원본 인덱스 배열). null이면 원본 순서 그대로
@@ -1036,6 +1065,10 @@ async function openProject(proj){
   document.getElementById('mapView').style.display='flex';
   document.getElementById('mapHeaderTitle').textContent=displayName;
   items=[];overlays={};hyState={};hyDraft={};hyExpanded={};groups=[];filterGroupVal=lockedFilterGroup;filterText='';displayIndexOrder=null;sortMode='';
+  pickMode=false;pickedIds=new Set();pickedFilterActive=false;
+  const pickBarEl=document.getElementById('pickBar');if(pickBarEl)pickBarEl.style.display='none';
+  const pickedPillEl=document.getElementById('pickedActivePill');if(pickedPillEl)pickedPillEl.style.display='none';
+  document.getElementById('pickModeBtn')?.classList.remove('active');
   document.getElementById('listEl').innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:30px">지도 초기화 중...</div>';
   const dateEl=document.getElementById('inspDateGlobal');
   if(dateEl&&!dateEl.value)dateEl.value=new Date().toISOString().slice(0,10); // 안전장치: 비어있으면 오늘 날짜로
@@ -1228,6 +1261,8 @@ function isHidden(d){
   const g=String(d.group_name||'').trim();
   // 팀 모드: 팀 밖 소화전은 항상 숨김 (필터 전환과 무관하게 팀 범위 밖으로 못 나감)
   if(teamFilterPrefix&&!(g===teamFilterPrefix||g.startsWith(teamFilterPrefix+' ')))return true;
+  // 선택 표시 모드: 고른 것만 보이고 그룹/검색 필터는 무시
+  if(pickedFilterActive)return !pickedIds.has(d.id);
   if(filterGroupVal&&g!==String(filterGroupVal).trim())return true;
   if(filterText&&!d.name.toLowerCase().includes(filterText.toLowerCase())&&!(d.address||'').toLowerCase().includes(filterText.toLowerCase()))return true;
   return false;
@@ -1263,6 +1298,72 @@ function setSort(mode){
   }else{
     displayIndexOrder=null;
   }
+  renderList();
+  applyFilter();
+}
+
+// ━━ 개별 선택 후 지도에 표시 ━━
+function togglePickMode(){
+  pickMode=!pickMode;
+  if(!pickMode)pickedIds.clear(); // 선택 모드 취소 시 담아둔 선택도 초기화
+  document.getElementById('pickModeBtn')?.classList.toggle('active',pickMode);
+  document.getElementById('pickBar').style.display=pickMode?'flex':'none';
+  updatePickCount();
+  renderList(); // 체크박스 유무가 바뀌므로 목록 다시 그림
+}
+function togglePicked(id){
+  if(pickedIds.has(id))pickedIds.delete(id);else pickedIds.add(id);
+  updatePickCount();
+  // 체크박스만 즉시 갱신 (전체 renderList는 무겁고, 체크 반응이 느려 보일 수 있음)
+  const idx=items.findIndex(d=>d.id===id);
+  if(idx>-1){
+    const chk=document.querySelector(`#item-${idx} .pick-chk`);
+    if(chk)chk.checked=pickedIds.has(id);
+  }
+}
+function updatePickCount(){
+  const el=document.getElementById('pickCount');
+  if(el)el.textContent=`${pickedIds.size}개 선택됨`;
+}
+// 현재 검색어/그룹 필터로 걸러진(화면에 보이는) 항목을 한 번에 전부 담는다.
+// 예: 검색창에 "지상식"을 검색하거나 그룹 필터로 "1조"를 고른 뒤 이 버튼을 누르면 그 결과 전체가 선택됨.
+function pickSelectAllVisible(){
+  let n=0;
+  items.forEach(d=>{if(!isHidden(d)&&!pickedIds.has(d.id)){pickedIds.add(d.id);n++;}});
+  updatePickCount();
+  renderList();
+  if(n)showToast(`${n}개 추가로 선택됨 (총 ${pickedIds.size}개)`,'ok');
+  else showToast('추가할 항목이 없습니다 (이미 다 선택됨)','err');
+}
+function pickClearAll(){
+  pickedIds.clear();
+  updatePickCount();
+  renderList();
+}
+function applyPickedFilter(){
+  if(!pickedIds.size){showToast('선택된 소화전이 없습니다','err');return;}
+  pickedFilterActive=true;
+  pickMode=false;
+  document.getElementById('pickModeBtn')?.classList.remove('active');
+  document.getElementById('pickBar').style.display='none';
+  const pill=document.getElementById('pickedActivePill');
+  document.getElementById('pickedActiveText').textContent=`🗺 선택한 ${pickedIds.size}개만 표시 중`;
+  pill.style.display='flex';
+  renderList();
+  applyFilter();
+  // 선택한 소화전들이 다 보이도록 지도 범위를 맞춤
+  const visible=items.filter(d=>pickedIds.has(d.id)&&d.lat&&d.lng);
+  if(visible.length&&kakaoMap){
+    const bounds=new kakao.maps.LatLngBounds();
+    visible.forEach(d=>bounds.extend(new kakao.maps.LatLng(d.lat,d.lng)));
+    kakaoMap.setBounds(bounds);
+  }
+  showToast(`${pickedIds.size}개 소화전을 지도에 표시합니다`,'ok');
+}
+function clearPickedFilter(){
+  pickedFilterActive=false;
+  pickedIds.clear();
+  document.getElementById('pickedActivePill').style.display='none';
   renderList();
   applyFilter();
 }
@@ -2082,7 +2183,7 @@ function buildListItem(i){
   const div=document.createElement('div');
   div.className='item'+(isHidden(d)?' hidden':'')+(isDone?' done-item':'');
   div.id=`item-${i}`;
-  div.innerHTML=`<div class="team-dot" style="background:${noCoord?'#94a3b8':color}"></div>
+  div.innerHTML=`${pickMode?`<input type="checkbox" class="pick-chk" data-id="${d.id}" ${pickedIds.has(d.id)?'checked':''} onclick="event.stopPropagation();togglePicked(${d.id})">`:''}<div class="team-dot" style="background:${noCoord?'#94a3b8':color}"></div>
     <div class="ibody">
       <div class="iname">${esc(d.name)}</div>
       <div class="isub">${esc((d.address||'').replace('서울특별시 금천구 ',''))}</div>
@@ -2096,6 +2197,7 @@ function buildListItem(i){
       </div>
     </div>`;
   div.addEventListener('click',()=>{
+    if(pickMode){togglePicked(d.id);return;} // 선택 모드에서는 카드 클릭도 체크 토글로 동작
     setActive(i);
     if(!(d.lat&&d.lng)){showToast('이 항목은 주소 좌표를 찾을 수 없어 지도에서 위치를 표시할 수 없습니다','err');return;}
     const isMobile=window.innerWidth<=600;
