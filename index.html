@@ -34,6 +34,29 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 /* ═══ Modal ═══ */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
+/* ── 지도 인쇄 모드 ──
+   화면 자체를 "종이 한 장" 크기(A4 가로 인쇄면 283×194mm)로 고정한다.
+   → 화면에서 본 모습 = 인쇄 결과가 되어, 인쇄 시 레이아웃이 다시 계산되며 지도 중심이 틀어지는 일이 없다.
+   (모바일 반응형 규칙보다 우선하도록 !important 사용) */
+#printMapTitle,#printBar{display:none}
+html.printing-map,html.printing-map body{background:#525659!important;overflow:auto!important}
+html.printing-map #mapHeader,html.printing-map .sidebar,html.printing-map .map-toolbar,html.printing-map .map-toolbar-top,html.printing-map .map-search,html.printing-map #mapSearchResults,html.printing-map .dist-info,html.printing-map #toast,html.printing-map .mob-toggle{display:none!important}
+html.printing-map #mapView{display:block!important;height:auto!important}
+html.printing-map .layout{display:block!important;height:auto!important;overflow:visible!important}
+html.printing-map .map-wrap{display:block!important;position:relative!important;flex:none!important;width:var(--print-w,283mm)!important;height:var(--print-h,194mm)!important;min-height:0!important;margin:0 auto!important;background:#fff}
+html.printing-map #printMapTitle{display:block;position:absolute;top:0;left:0;right:0;height:52px;box-sizing:border-box;overflow:hidden;z-index:50;background:#fff;color:#111;padding:6px 12px;font-size:13px;font-weight:700;border-bottom:1px solid #ccc}
+html.printing-map #printMapTitle .lg{display:inline-flex;align-items:center;gap:4px;margin:3px 10px 0 0;font-size:11px;font-weight:600}
+html.printing-map #printMapTitle .lg i{display:inline-block;width:10px;height:10px;border-radius:50%}
+html.printing-map #map{position:absolute!important;top:52px!important;left:0!important;right:0!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important}
+/* 인쇄 미리보기 조작 바 (종이에는 안 나옴) */
+html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99999;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45);font-size:12.5px;max-width:96vw}
+#printBar button{padding:7px 12px;border-radius:7px;border:1px solid #374151;background:#1f2937;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer}
+#printBar button.pri{background:#2563eb;border-color:#2563eb}
+#printBar button:disabled{opacity:.4;cursor:default}
+@media print{
+  html.printing-map,html.printing-map body{background:#fff!important;margin:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html.printing-map #printBar{display:none!important}
+}
 .modal{background:var(--sur);border:1px solid var(--bd2);border-radius:var(--r2);padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
 .modal h3{font-size:16px;margin-bottom:16px}
 .form-row{margin-bottom:12px}
@@ -366,6 +389,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
       <button class="btn btn-ghost" onclick="showUploadModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">📂 소화전 업로드</button>
       <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">🔧 데이터 재설정</button>
       <button class="btn" onclick="exportExcel()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0;background:#22c55e;color:#fff;border:1px solid #22c55e">📊 결과 파일출력</button>
+      <button class="btn btn-ghost" onclick="showPrintModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">🖨 인쇄</button>
     </div>
   </div>
   <div class="layout">
@@ -427,6 +451,15 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
       <div id="mapPh" style="position:absolute;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--mt);font-size:13px">
         <div style="font-size:48px;opacity:.2">🗺️</div><div>지도 로딩 중...</div>
       </div>
+      <div id="printMapTitle"></div>
+      <div id="printBar">
+        <span id="printBarInfo" style="font-weight:700;margin-right:4px"></span>
+        <button id="pmPrevBtn" onclick="pmMove(-1)">◀ 이전</button>
+        <button class="pri" onclick="pmPrint()">🖨 이 장 인쇄</button>
+        <button id="pmNextBtn" onclick="pmMove(1)">다음 ▶</button>
+        <button onclick="pmRecenter()" title="지도를 움직였다면 담당구역 중앙으로 다시 맞춤">🎯 중앙 맞춤</button>
+        <button onclick="pmExit()">✕ 종료</button>
+      </div>
       <div id="map"></div>
       <div class="map-search" id="mapSearch">
         <div class="map-search-row">
@@ -442,6 +475,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
         <button class="tool-btn" id="btnDist" onclick="toggleDist()">📏<span class="btn-txt"> 거리</span></button>
         <button class="tool-btn" id="btnRv" onclick="toggleRvMode()">🔭<span class="btn-txt"> 로드뷰</span></button>
         <button class="tool-btn" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 OFF</span></button>
+        <button class="tool-btn on" id="btnTipToggle" onclick="toggleTooltip()" title="마커에 마우스를 올렸을 때 소화전 번호 표시">🔢<span class="btn-txt" id="btnTipToggleTxt"> 툴팁 ON</span></button>
         <button class="tool-btn" id="btnDistClear" onclick="clearDist()" style="display:none;font-size:11px;color:var(--hi)">✕<span class="btn-txt"> 초기화</span></button>
       </div>
       <div class="map-toolbar" id="mapToolbar">
@@ -473,6 +507,42 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
     </div>
   </div>
   <button class="mob-toggle" id="mobToggle" onclick="toggleMobView()">🗺️ 지도 보기</button>
+</div>
+
+<!-- ════ 모달: 인쇄 ════ -->
+<div class="modal-bg" id="printModal">
+  <div class="modal" style="max-width:420px">
+    <h3>🖨 인쇄</h3>
+    <div class="form-row">
+      <label>용지</label>
+      <select id="printPaper" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700">
+        <option value="A4">A4 가로 (297×210mm)</option>
+        <option value="B4">B4 가로 (364×257mm) — A4보다 약 1.5배 넓음</option>
+        <option value="A3">A3 가로 (420×297mm) — A4의 2배</option>
+      </select>
+      <div style="font-size:11px;color:var(--mt);margin-top:4px">프린터에 해당 용지가 있어야 합니다. 인쇄창의 용지 크기도 같은지 확인하세요.</div>
+    </div>
+    <div class="form-row">
+      <label>인쇄 범위</label>
+      <select id="printScope" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700"></select>
+    </div>
+    <div class="form-row">
+      <label>인쇄 형식</label>
+      <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+        <label style="display:flex;gap:7px;align-items:center;cursor:pointer;font-weight:600"><input type="radio" name="printFmt" value="list" checked> 📋 점검 목록표 <span style="color:var(--mt);font-weight:400;font-size:11.5px">(조별 페이지 분리, 현장 기록용)</span></label>
+        <label style="display:flex;gap:7px;align-items:center;cursor:pointer;font-weight:600"><input type="radio" name="printFmt" value="map"> 🗺 지도 <span style="color:var(--mt);font-weight:400;font-size:11.5px">(범위에 맞춰 확대, 조별 색상 범례)</span></label>
+      </div>
+    </div>
+    <div class="form-row" style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">
+      <label style="display:flex;gap:7px;align-items:center;cursor:pointer"><input type="checkbox" id="printUndoneOnly"> 미완료 소화전만</label>
+      <label style="display:flex;gap:7px;align-items:center;cursor:pointer"><input type="checkbox" id="printMapLabels" checked> 지도 인쇄 시 소화전 번호 표시</label>
+      <label style="display:flex;gap:7px;align-items:center;cursor:pointer"><input type="checkbox" id="printMapPerJo" checked> 지도 인쇄 시 조별로 한 장씩 (각 조 담당구역이 중앙)</label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-ghost" onclick="hideModal('printModal')">취소</button>
+      <button class="btn btn-primary" onclick="doPrint()">🖨 인쇄</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════ 모달: 프로젝트 수정 ════ -->
@@ -607,7 +677,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.3.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v1.4.3'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -661,6 +731,7 @@ let groups=[],filterGroupVal='',filterText='';
 let pickMode=false;          // 선택 모드 on/off (목록에 체크박스 표시)
 let pickedIds=new Set();     // 선택된 item id들 (선택 모드 중 담기는 중)
 let pickedFilterActive=false;// "지도에 표시" 눌러서 실제로 필터가 적용된 상태
+let tooltipOn=true; // 마커 hover 시 소화전 번호 툴팁 표시 여부 (기기에 기억)
 let labelsOn=false; // 마커 아래 이름표(풍선) 표시 여부 (기본 OFF)
 let fixLocationIdx=-1; // 위치 수정 모드 중인 항목의 idx (-1이면 비활성)
 let displayIndexOrder=null; // 정렬된 표시 순서(원본 인덱스 배열). null이면 원본 순서 그대로
@@ -695,6 +766,8 @@ const sbClient=()=>SupabaseUtil.getClient();
 /* ══════════ Init ══════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   SupabaseUtil.init(SB_URL,SB_KEY);
+  tooltipOn=safeStorage.get('hy_tooltip_on','1')!=='0';
+  _applyTooltipBtn();
   // 버전 표시: 화면 하단(캐시된 옛 버전인지 사용자가 바로 확인 가능) + 콘솔(문의 대응용)
   const verEl=document.getElementById('appVersion');
   if(verEl)verEl.textContent=`소화전 점검 지도 ${APP_VERSION}`;
@@ -1546,7 +1619,7 @@ function addMarker(idx,d){
 
   // 툴팁: body에 단 하나의 공유 툴팁 요소를 사용 (stacking context 탈출)
   el.addEventListener('mouseenter',()=>{
-    if(iwOpen===iw)return;
+    if(!tooltipOn||iwOpen===iw)return;
     const r=el.getBoundingClientRect();
     _sharedTooltip.textContent=d.name;
     _sharedTooltip.style.left=(r.left+r.width/2)+'px';
@@ -2868,6 +2941,236 @@ function toggleMyLocation(){
     {enableHighAccuracy:true,timeout:10000,maximumAge:3000}
   );
 }
+function toggleTooltip(){
+  tooltipOn=!tooltipOn;
+  safeStorage.set('hy_tooltip_on',tooltipOn?'1':'0');
+  _applyTooltipBtn();
+  if(!tooltipOn&&_sharedTooltip)_sharedTooltip.style.opacity='0';
+}
+function _applyTooltipBtn(){
+  document.getElementById('btnTipToggle')?.classList.toggle('on',tooltipOn);
+  const t=document.getElementById('btnTipToggleTxt');
+  if(t)t.textContent=tooltipOn?' 툴팁 ON':' 툴팁 OFF';
+}
+
+/* ══════════ 인쇄 (전체 / 팀 / 조) ══════════ */
+// 범위 값: 'all' | 'team:1팀' | 'jo:1팀 2조'
+function _printTeams(){return [...new Set(groups.filter(g=>g.includes(' ')).map(g=>g.split(' ')[0]))];}
+function _inPrintScope(d,scope){
+  const g=String(d.group_name||'').trim();
+  // 세분계획 잠금 범위 밖은 어떤 경우에도 인쇄하지 않음
+  if(teamFilterPrefix&&!(g===teamFilterPrefix||g.startsWith(teamFilterPrefix+' ')))return false;
+  if(lockedFilterGroup&&g!==lockedFilterGroup)return false;
+  if(scope==='all')return true;
+  if(scope.startsWith('team:')){const t=scope.slice(5);return g===t||g.startsWith(t+' ');}
+  if(scope.startsWith('jo:'))return g===scope.slice(3);
+  return true;
+}
+// 인쇄용 소화전 번호: 앞의 지역명 접두어(예: '금천-')를 떼고 숫자만 6자리로
+function _shortNo(name){
+  const s=String(name||'').trim();
+  const m=s.match(/^[^\d]*[-\s]\s*(\d+)$/);
+  return m?m[1].padStart(6,'0'):s;
+}
+function _scopeLabel(scope){
+  if(scope==='all')return '전체';
+  if(scope.startsWith('team:'))return scope.slice(5)+' 전체';
+  return scope.slice(3);
+}
+function showPrintModal(){
+  if(!items.length){showToast('인쇄할 소화전이 없습니다','err');return;}
+  const sel=document.getElementById('printScope');
+  const opts=[];
+  if(lockedFilterGroup){
+    opts.push(['jo:'+lockedFilterGroup,lockedFilterGroup]);
+  }else if(teamFilterPrefix){
+    opts.push(['team:'+teamFilterPrefix,teamFilterPrefix+' 전체']);
+    groups.filter(g=>g.startsWith(teamFilterPrefix+' ')).forEach(g=>opts.push(['jo:'+g,'　└ '+g]));
+  }else{
+    opts.push(['all','전체 ('+items.length+'개)']);
+    _printTeams().forEach(t=>{
+      opts.push(['team:'+t,t+' 전체']);
+      groups.filter(g=>g.startsWith(t+' ')).forEach(g=>opts.push(['jo:'+g,'　└ '+g]));
+    });
+    groups.filter(g=>!g.includes(' ')).forEach(g=>opts.push(['jo:'+g,g]));
+  }
+  sel.innerHTML=opts.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  const pp=safeStorage.get('hy_print_paper','A4');
+  document.getElementById('printPaper').value=PRINT_PAPERS[pp]?pp:'A4';
+  // 기본값: 지금 보고 있는 범위
+  const cur=filterGroupVal?'jo:'+filterGroupVal:teamFilterPrefix?'team:'+teamFilterPrefix:lockedFilterGroup?'jo:'+lockedFilterGroup:'all';
+  if(opts.some(o=>o[0]===cur))sel.value=cur;
+  showModal('printModal');
+}
+// ── 용지 (가로 방향, mm) ──
+const PRINT_PAPERS={A4:[297,210],B4:[364,257],A3:[420,297]};
+const PRINT_MARGIN=6; // 지도 인쇄 여백(mm)
+function _paper(){const k=document.getElementById('printPaper')?.value||'A4';return {key:k,w:PRINT_PAPERS[k][0],h:PRINT_PAPERS[k][1]};}
+// 지도 인쇄용: 화면의 지도 영역을 선택한 용지의 인쇄면 크기로 + @page 크기 지정
+function _applyMapPaper(){
+  const p=_paper();
+  const root=document.documentElement;
+  root.style.setProperty('--print-w',(p.w-PRINT_MARGIN*2-1)+'mm');
+  root.style.setProperty('--print-h',(p.h-PRINT_MARGIN*2-2)+'mm');
+  let st=document.getElementById('printPageStyle');
+  if(!st){st=document.createElement('style');st.id='printPageStyle';document.head.appendChild(st);}
+  st.textContent=`@media print{@page{size:${p.w}mm ${p.h}mm;margin:${PRINT_MARGIN}mm}}`;
+}
+function doPrint(){
+  safeStorage.set('hy_print_paper',document.getElementById('printPaper').value);
+  const scope=document.getElementById('printScope').value;
+  const fmt=document.querySelector('input[name="printFmt"]:checked')?.value||'list';
+  const undoneOnly=document.getElementById('printUndoneOnly').checked;
+  let list=items.filter(d=>_inPrintScope(d,scope));
+  if(undoneOnly)list=list.filter(d=>!doneMap[d.id]);
+  if(!list.length){showToast('해당 범위에 인쇄할 소화전이 없습니다','err');return;}
+  hideModal('printModal');
+  if(fmt==='map')_printMap(scope,list,document.getElementById('printMapLabels').checked,document.getElementById('printMapPerJo').checked);
+  else _printList(scope,list);
+}
+// ── 점검 목록표: 새 창에 표 형태로 만들어 인쇄 (조별로 페이지 분리) ──
+function _printList(scope,list){
+  const typeTxt=d=>{const t=hydrantMap[d.id]?.hydrant_type||getExcelHydrantType(d);return t==='ground'?'지상':t==='underground'?'지하':'';};
+  const byGroup={};
+  list.forEach(d=>{const g=String(d.group_name||'').trim()||'(미지정)';(byGroup[g]=byGroup[g]||[]).push(d);});
+  const gNames=Object.keys(byGroup).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  const today=new Date().toLocaleDateString('ko-KR');
+  const title=currentProject?.name||'소화전 점검';
+  const sections=gNames.map((g,gi)=>{
+    const rows=byGroup[g].slice().sort((a,b)=>_shortNo(a.name).localeCompare(_shortNo(b.name),'ko',{numeric:true}));
+    const done=rows.filter(d=>doneMap[d.id]).length;
+    const trs=rows.map((d,i)=>{
+      const rec=hydrantMap[d.id];
+      const res=rec?.result?hyStatusInfo(rec).label.replace(/^[^ ]+ /,''):'';
+      return `<tr><td class="c">${i+1}</td><td class="b">${esc(_shortNo(d.name))}</td><td>${esc((d.address||'').replace('서울특별시 금천구 ',''))}</td><td class="c">${typeTxt(d)}</td><td class="c">${esc(res)}</td><td class="c">${rec?.paint?PAINT_LABEL[rec.paint]:''}</td><td class="c">${rec?.insul?INSUL_LABEL[rec.insul]:''}</td><td class="c">${doneMap[d.id]?'✔':'☐'}</td><td class="m">${esc(memoMap[d.id]||'')}</td></tr>`;
+    }).join('');
+    return `<section${gi?' class="pb"':''}><h2>${esc(g)} <small>${rows.length}개 · 완료 ${done}개</small></h2>
+      <table><thead><tr><th style="width:28px">No</th><th style="width:92px">시설번호</th><th>주소</th><th style="width:38px">식구분</th><th style="width:78px">점검결과</th><th style="width:44px">도색</th><th style="width:44px">보온</th><th style="width:34px">완료</th><th style="width:22%">메모 / 비고</th></tr></thead><tbody>${trs}</tbody></table></section>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)} - ${esc(_scopeLabel(scope))}</title>
+<style>
+@page{size:${_paper().w}mm ${_paper().h}mm;margin:10mm}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:#111;margin:0;font-size:${_paper().key==='A4'?11:12.5}px}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:8px}
+header h1{font-size:16px;margin:0}header div{font-size:11px;color:#444}
+h2{font-size:13px;margin:10px 0 4px}h2 small{font-weight:400;color:#555;font-size:11px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{border:1px solid #888;padding:4px 5px;vertical-align:middle;word-break:keep-all;overflow-wrap:anywhere}
+th{background:#e8eef7;font-size:10.5px}tr{page-break-inside:avoid}
+td.c{text-align:center}td.b{font-weight:700}td.m{font-size:10px;color:#333}
+thead{display:table-header-group}
+.pb{page-break-before:always}
+</style></head><body>
+<header><h1>🧯 ${esc(title)} — ${esc(_scopeLabel(scope))}</h1><div>출력일 ${today} · 총 ${list.length}개 · 완료 ${list.filter(d=>doneMap[d.id]).length}개 · 점검자 ________</div></header>
+${sections}
+<script>window.onload=()=>{setTimeout(()=>window.print(),300)};<\/script>
+</body></html>`;
+  const w=window.open('','_blank');
+  if(!w){showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해주세요','err');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+// ── 지도 인쇄 ──
+// 페이지(전체 범위 1장 또는 조별 여러 장)마다: 해당 소화전만 남기고 → 담당구역 중앙에 맞춰 확대 → 인쇄
+// → 인쇄창이 닫히면(afterprint) 다음 조로 넘어가고, 끝나면 원래 화면으로 복구한다.
+function _robustPts(pts){
+  // 좌표 이상치(엉뚱하게 먼 지점) 때문에 중심이 틀어지지 않도록 중앙값에서 약 5km 이상 떨어진 점은 제외
+  if(pts.length<4)return pts;
+  const med=a=>{const x=a.slice().sort((p,q)=>p-q);return x[Math.floor(x.length/2)];};
+  const mLat=med(pts.map(d=>d.lat)),mLng=med(pts.map(d=>d.lng));
+  const ok=pts.filter(d=>Math.abs(d.lat-mLat)<0.045&&Math.abs(d.lng-mLng)<0.055);
+  return ok.length?ok:pts;
+}
+function _centerMapOn(pts){
+  const core=_robustPts(pts);
+  let minLat=90,maxLat=-90,minLng=180,maxLng=-180;
+  core.forEach(d=>{minLat=Math.min(minLat,d.lat);maxLat=Math.max(maxLat,d.lat);minLng=Math.min(minLng,d.lng);maxLng=Math.max(maxLng,d.lng);});
+  const b=new kakao.maps.LatLngBounds(new kakao.maps.LatLng(minLat,minLng),new kakao.maps.LatLng(maxLat,maxLng));
+  kakaoMap.setBounds(b,50,50,50,50);
+  // setBounds가 고른 확대 수준은 유지하고, 중심을 담당구역의 정중앙으로 확정
+  kakaoMap.setCenter(new kakao.maps.LatLng((minLat+maxLat)/2,(minLng+maxLng)/2));
+}
+let _pm=null; // 진행 중인 지도 인쇄 세션 {pages,k,restore}
+function _printMap(scope,list,showLabels,perJo){
+  if(!kakaoMap){showToast('지도가 준비되지 않았습니다','err');return;}
+  const pts=list.filter(d=>d.lat&&d.lng);
+  if(!pts.length){showToast('좌표가 있는 소화전이 없습니다','err');return;}
+  const byG={};
+  pts.forEach(d=>{const g=String(d.group_name||'').trim()||'(미지정)';(byG[g]=byG[g]||[]).push(d);});
+  const gNames=Object.keys(byG).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  const pages=(perJo&&gNames.length>1)
+    ?gNames.map(g=>({label:g,pts:byG[g]}))
+    :[{label:_scopeLabel(scope),pts}];
+
+  const prev={active:pickedFilterActive,ids:new Set(pickedIds),labels:labelsOn,
+              center:kakaoMap.getCenter(),level:kakaoMap.getLevel()};
+  closeIw();
+  if(showLabels!==labelsOn)toggleLabelVisibility();
+  // 라벨을 인쇄용 짧은 번호로 잠시 바꿈 (종료 시 원래 이름으로 복구)
+  const labelBackup=[];
+  Object.entries(overlays).forEach(([i,o])=>{
+    const el=o.labelOverlay?.getContent&&o.labelOverlay.getContent();
+    if(el&&items[i]){labelBackup.push([el,el.textContent]);el.textContent=_shortNo(items[i].name);}
+  });
+  _applyMapPaper();
+  document.documentElement.classList.add('printing-map');
+  window.scrollTo(0,0);
+  const restore=()=>{
+    document.documentElement.classList.remove('printing-map');
+    labelBackup.forEach(([el,t])=>{el.textContent=t;});
+    pickedIds=prev.ids;pickedFilterActive=prev.active;
+    if(labelsOn!==prev.labels)toggleLabelVisibility();
+    applyFilter();
+    setTimeout(()=>{kakaoMap.relayout();kakaoMap.setCenter(prev.center);kakaoMap.setLevel(prev.level);},50);
+  };
+  _pm={pages,k:0,restore};
+  _pmShow(0);
+}
+function _pmShow(k){
+  if(!_pm)return;
+  _pm.k=k;
+  const pg=_pm.pages[k],n=_pm.pages.length;
+  pickedIds=new Set(pg.pts.map(d=>d.id));pickedFilterActive=true;
+  applyFilter();
+  const gs=[...new Set(pg.pts.map(d=>String(d.group_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  document.getElementById('printMapTitle').innerHTML=`🧯 ${esc(currentProject?.name||'')} — ${esc(pg.label)} <span style="font-weight:400;font-size:11px;color:#555">(${pg.pts.length}개 · 출력일 ${new Date().toLocaleDateString('ko-KR')}${n>1?` · ${k+1}/${n}`:''})</span><br>`
+    +gs.map(g=>`<span class="lg"><i style="background:${groupColor({group_name:g})}"></i>${esc(g)}</span>`).join('');
+  document.getElementById('printBarInfo').textContent=n>1?`${k+1}/${n} · ${pg.label}`:pg.label;
+  document.getElementById('pmPrevBtn').style.display=n>1?'':'none';
+  document.getElementById('pmNextBtn').style.display=n>1?'':'none';
+  document.getElementById('pmPrevBtn').disabled=k===0;
+  document.getElementById('pmNextBtn').disabled=k===n-1;
+  // 레이아웃이 종이 크기로 바뀐 뒤 지도 크기를 다시 계산하고 담당구역 정중앙에 맞춘다 (두 번 확인)
+  setTimeout(pmRecenter,120);
+  setTimeout(pmRecenter,600);
+}
+function pmRecenter(){
+  if(!_pm)return;
+  kakaoMap.relayout();
+  _centerMapOn(_pm.pages[_pm.k].pts);
+}
+function pmMove(step){
+  if(!_pm)return;
+  const k=_pm.k+step;
+  if(k<0||k>=_pm.pages.length)return;
+  _pmShow(k);
+}
+function pmPrint(){
+  if(!_pm)return;
+  // 인쇄창이 닫히면 다음 조로 자동 이동 (마지막 장이면 그대로 둠)
+  window.addEventListener('afterprint',()=>{
+    setTimeout(()=>{
+      if(!_pm)return;
+      if(_pm.k<_pm.pages.length-1)_pmShow(_pm.k+1);
+      else showToast('마지막 장입니다. ✕ 종료를 누르면 원래 화면으로 돌아갑니다','ok');
+    },300);
+  },{once:true});
+  window.print();
+}
+function pmExit(){
+  if(!_pm)return;
+  const r=_pm.restore;_pm=null;r();
+}
+
 function toggleLabelVisibility(){
   labelsOn=!labelsOn;
   const btn=document.getElementById('btnLabelToggle');
