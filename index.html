@@ -39,6 +39,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
    → 화면에서 본 모습 = 인쇄 결과가 되어, 인쇄 시 레이아웃이 다시 계산되며 지도 중심이 틀어지는 일이 없다.
    (모바일 반응형 규칙보다 우선하도록 !important 사용) */
 #printMapTitle,#printBar{display:none}
+@media (max-width:768px),(pointer:coarse){.pc-only{display:none!important}}
 html.printing-map,html.printing-map body{background:#525659!important;overflow:auto!important}
 html.printing-map #mapHeader,html.printing-map .sidebar,html.printing-map .map-toolbar,html.printing-map .map-toolbar-top,html.printing-map .map-search,html.printing-map #mapSearchResults,html.printing-map .dist-info,html.printing-map #toast,html.printing-map .mob-toggle{display:none!important}
 html.printing-map #mapView{display:block!important;height:auto!important}
@@ -460,6 +461,22 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
         <div style="font-size:48px;opacity:.2">🗺️</div><div>지도 로딩 중...</div>
       </div>
       <div id="printMapTitle"></div>
+      <div id="batchFixBar" style="display:none;position:absolute;left:50%;top:62px;transform:translateX(-50%);z-index:300;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;background:#111827;color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45);font-size:12.5px;max-width:94%">
+        <span style="font-weight:700">✋ 일괄 위치수정</span>
+        <span style="color:#9ca3af">마커를 끌어 옮기세요 · 우클릭: 되돌리기</span>
+        <span id="bfCount" style="font-weight:800;color:#f59e0b">변경 0개</span>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="bfAddr" checked style="width:14px;height:14px;margin:0"> 주소도 갱신</label>
+        <button onclick="saveBatchFix()" style="padding:6px 12px;border-radius:7px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">💾 저장</button>
+        <button onclick="revertBatchFix()" style="padding:6px 10px;border-radius:7px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:700;cursor:pointer">↺ 모두 되돌리기</button>
+        <button onclick="toggleBatchFix()" style="padding:6px 10px;border-radius:7px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:700;cursor:pointer">✕ 종료</button>
+      </div>
+      <div id="gpsPanel" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:300;flex-direction:column;gap:8px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45);font-size:13px;width:min(92%,380px)">
+        <div id="gpsInfo"></div>
+        <div style="display:flex;gap:6px">
+          <button id="gpsOkBtn" onclick="finishPreciseGps(false)" style="flex:1;padding:8px;border-radius:7px;border:none;background:#2563eb;color:#fff;font-weight:700;font-size:13px;cursor:pointer">이 위치로 확정</button>
+          <button onclick="stopPreciseGps();showToast('지도를 눌러 위치를 직접 지정할 수 있습니다','')" style="padding:8px 12px;border-radius:7px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:700;font-size:13px;cursor:pointer">취소</button>
+        </div>
+      </div>
       <div id="printBar">
         <span id="printBarInfo" style="font-weight:700;margin-right:4px"></span>
         <button id="pmPrevBtn" onclick="pmMove(-1)">◀ 이전</button>
@@ -489,6 +506,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
         <button class="tool-btn" id="btnRv" onclick="toggleRvMode()">🔭<span class="btn-txt"> 로드뷰</span></button>
         <button class="tool-btn" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 OFF</span></button>
         <button class="tool-btn on" id="btnTipToggle" onclick="toggleTooltip()" title="마커에 마우스를 올렸을 때 소화전 번호 표시">🔢<span class="btn-txt" id="btnTipToggleTxt"> 툴팁 ON</span></button>
+        <button class="tool-btn pc-only" id="btnBatchFix" onclick="toggleBatchFix()" title="여러 소화전을 마우스로 끌어 한 번에 위치 수정 (PC 전용)">✋<span class="btn-txt"> 일괄 위치수정</span></button>
         <button class="tool-btn" id="btnDistClear" onclick="clearDist()" style="display:none;font-size:11px;color:var(--hi)">✕<span class="btn-txt"> 초기화</span></button>
       </div>
       <div class="map-toolbar" id="mapToolbar">
@@ -710,7 +728,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.6.4'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v1.7.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1626,6 +1644,10 @@ function panToForCard(lat,lng){
 //   "조 하나만 골랐는데 다른 조가 보이는" 버그가 났다. 반드시 이 함수로 지운 뒤 초기화할 것.
 function clearMapOverlays(){
   closeIw();
+  if(typeof stopPreciseGps==='function')stopPreciseGps();
+  if(_bf){_bf.marks.forEach(r=>{r.marker.setMap(null);r.line?.setMap(null);});_bf=null;
+    const b=document.getElementById('batchFixBar');if(b)b.style.display='none';
+    document.getElementById('btnBatchFix')?.classList.remove('on');}
   Object.values(overlays).forEach(o=>{o.overlay?.setMap(null);o.iw?.setMap(null);o.labelOverlay?.setMap(null);});
   if(clusterer)clusterer.clear();
   overlays={};
@@ -2917,7 +2939,208 @@ function showFixPin(latLng){
 function clearFixPin(){
   if(_fixPinOverlay){_fixPinOverlay.setMap(null);_fixPinOverlay=null;}
 }
+/* ══════════ 정밀 GPS 보정 ══════════
+   스마트폰 GPS는 첫 값이 기지국/와이파이 기반의 대략적인 값(오차 수십 m)인 경우가 많고,
+   위성을 잡을수록 점점 정확해진다. 그래서 한 번만 읽지 않고 최대 30초 동안 계속 측정하면서
+   오차(±m)를 화면에 보여주고, 가장 정확한 측정값들의 가중 평균을 위치로 쓴다. */
+let _gps=null; // {idx,watch,samples,timer,started,circle,dot}
+function startPreciseGps(idx){
+  stopPreciseGps();
+  const panel=document.getElementById('gpsPanel');
+  panel.style.display='flex';
+  _gps={idx,samples:[],started:Date.now(),circle:null,dot:null,timer:null,watch:null};
+  _gpsRender();
+  _gps.watch=navigator.geolocation.watchPosition(
+    pos=>{
+      if(!_gps)return;
+      const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
+      _gps.samples.push({lat,lng,acc,t:Date.now()});
+      const ll=new kakao.maps.LatLng(lat,lng);
+      if(!_gps.circle){
+        _gps.circle=new kakao.maps.Circle({center:ll,radius:acc,strokeWeight:2,strokeColor:'#2563eb',strokeOpacity:.8,fillColor:'#2563eb',fillOpacity:.12,zIndex:80});
+        _gps.circle.setMap(kakaoMap);
+        const el=document.createElement('div');
+        el.style.cssText='width:14px;height:14px;border-radius:50%;background:#2563eb;border:3px solid #fff;box-shadow:0 0 0 3px rgba(37,99,235,.35)';
+        _gps.dot=new kakao.maps.CustomOverlay({position:ll,content:el,zIndex:81,xAnchor:.5,yAnchor:.5});
+        _gps.dot.setMap(kakaoMap);
+        kakaoMap.setLevel(Math.min(kakaoMap.getLevel(),2));
+        kakaoMap.setCenter(ll);
+      }else{
+        _gps.circle.setPosition(ll);_gps.circle.setRadius(acc);_gps.dot.setPosition(ll);
+      }
+      _gpsRender();
+      // 오차 8m 이하가 3번 연속 나오면 충분히 안정된 것으로 보고 자동 완료
+      const last=_gps.samples.slice(-3);
+      if(last.length===3&&last.every(x=>x.acc<=8))finishPreciseGps(true);
+    },
+    err=>{
+      const msg=err.code===1?'위치 권한이 거부되었습니다. 브라우저 설정에서 위치를 "허용"(정확한 위치)으로 바꿔주세요':
+                err.code===2?'위치를 확인할 수 없습니다 (실내라면 밖으로 나와주세요)':'위치 측정 시간 초과';
+      showToast(msg,'err');
+      if(_gps&&!_gps.samples.length)stopPreciseGps();
+    },
+    {enableHighAccuracy:true,maximumAge:0,timeout:30000}
+  );
+  _gps.timer=setInterval(()=>{
+    if(!_gps)return;
+    _gpsRender();
+    if(Date.now()-_gps.started>30000)finishPreciseGps(true); // 30초가 지나면 그때까지의 최적값 제시
+  },1000);
+}
+// 가장 정확한 측정값 기준으로, 그와 비슷하게 정확한 값들을 1/오차² 가중 평균 (튀는 값 영향 줄이기)
+function _gpsBest(){
+  if(!_gps||!_gps.samples.length)return null;
+  const best=Math.min(..._gps.samples.map(x=>x.acc));
+  const good=_gps.samples.filter(x=>x.acc<=Math.max(best*1.5,best+3));
+  let w=0,la=0,ln=0;
+  good.forEach(x=>{const k=1/(x.acc*x.acc);w+=k;la+=x.lat*k;ln+=x.lng*k;});
+  return {lat:la/w,lng:ln/w,acc:best,n:good.length};
+}
+function _gpsRender(){
+  if(!_gps)return;
+  const sec=Math.floor((Date.now()-_gps.started)/1000);
+  const cur=_gps.samples[_gps.samples.length-1];
+  const b=_gpsBest();
+  const col=a=>a<=8?'#22c55e':a<=20?'#f59e0b':'#ef4444';
+  document.getElementById('gpsInfo').innerHTML=!cur
+    ?`📡 위성 찾는 중… ${sec}초 <span style="color:#9ca3af;font-size:11px">(하늘이 트인 곳에서 잠시 기다려주세요)</span>`
+    :`📡 측정 ${sec}초 · 현재 <b style="color:${col(cur.acc)}">±${Math.round(cur.acc)}m</b> · 최고 <b style="color:${col(b.acc)}">±${Math.round(b.acc)}m</b>
+      <div style="font-size:11px;color:#9ca3af;margin-top:2px">${b.acc<=8?'충분히 정확합니다 ✅':b.acc<=20?'조금 더 기다리면 정확해질 수 있어요':'오차가 큽니다 — 지도를 직접 눌러 지정하는 것을 권장'}</div>`;
+  document.getElementById('gpsOkBtn').disabled=!b;
+}
+function finishPreciseGps(auto){
+  if(!_gps)return;
+  const b=_gpsBest(),idx=_gps.idx;
+  stopPreciseGps();
+  if(!b){showToast('위치를 측정하지 못했습니다','err');return;}
+  if(b.acc>30&&!confirm(`GPS 오차가 ±${Math.round(b.acc)}m로 큽니다.\n그래도 이 위치로 저장할까요?\n(취소 후 지도를 직접 눌러 지정할 수 있습니다)`))return;
+  showToast(`GPS 측정 완료 (±${Math.round(b.acc)}m, ${b.n}회 평균)`,'ok');
+  confirmAndApplyFixLocation(idx,new kakao.maps.LatLng(b.lat,b.lng));
+}
+function stopPreciseGps(){
+  if(!_gps)return;
+  if(_gps.watch!==null)navigator.geolocation.clearWatch(_gps.watch);
+  clearInterval(_gps.timer);
+  _gps.circle?.setMap(null);_gps.dot?.setMap(null);
+  _gps=null;
+  const panel=document.getElementById('gpsPanel');if(panel)panel.style.display='none';
+}
+/* ══════════ 일괄 위치수정 (PC 전용) ══════════
+   현재 지도에 보이는(필터 적용된) 소화전을 끌어서 옮길 수 있는 마커로 바꾸고,
+   옮긴 것들을 모아 두었다가 [저장]으로 한 번에 DB에 반영한다. 저장 전에는 언제든 되돌릴 수 있다. */
+let _bf=null; // {marks:Map(itemId → {marker,line,orig,idx}), changed:Set}
+const _bfImgCache={};
+function _bfImg(color,moved){
+  const k=color+(moved?'m':'');
+  if(_bfImgCache[k])return _bfImgCache[k];
+  const ring=moved?'#dc2626':'#ffffff';
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><circle cx="11" cy="11" r="8" fill="${color}" stroke="${ring}" stroke-width="${moved?4:3}"/></svg>`;
+  return _bfImgCache[k]=new kakao.maps.MarkerImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg),new kakao.maps.Size(22,22),{offset:new kakao.maps.Point(11,11)});
+}
+function toggleBatchFix(){
+  if(_bf){
+    if(_bf.changed.size&&!confirm(`저장하지 않은 변경 ${_bf.changed.size}개가 있습니다. 버리고 종료할까요?`))return;
+    _bfExit();return;
+  }
+  if(window.innerWidth<=768||matchMedia('(pointer:coarse)').matches){showToast('일괄 위치수정은 PC 화면에서만 사용할 수 있습니다','err');return;}
+  if(!kakaoMap||!items.length)return;
+  const targets=items.map((d,i)=>({d,i})).filter(({d})=>d.lat&&d.lng&&!isHidden(d));
+  if(!targets.length){showToast('지도에 표시된 소화전이 없습니다','err');return;}
+  if(targets.length>400&&!confirm(`${targets.length}개 소화전을 편집 마커로 바꿉니다. 조나 팀으로 범위를 좁히면 더 가볍습니다. 계속할까요?`))return;
+  closeIw();
+  if(fixLocationIdx>=0){fixLocationIdx=-1;kakaoMap.setCursor('');}
+  _bf={marks:new Map(),changed:new Set()};
+  targets.forEach(({d,i})=>{
+    const o=overlays[i];
+    o?.overlay?.setMap(null); // 원래 마커는 잠시 숨김 (번호 라벨은 남겨서 어느 소화전인지 보이게)
+    const pos=new kakao.maps.LatLng(d.lat,d.lng);
+    const marker=new kakao.maps.Marker({position:pos,draggable:true,image:_bfImg(groupColor(d),false),title:`${d.name} (${(d.address||'').replace('서울특별시 금천구 ','')})`,zIndex:5});
+    marker.setMap(kakaoMap);
+    const rec={marker,line:null,orig:{lat:d.lat,lng:d.lng},idx:i,d};
+    kakao.maps.event.addListener(marker,'dragend',()=>_bfMoved(rec));
+    kakao.maps.event.addListener(marker,'rightclick',()=>_bfRevertOne(rec));
+    _bf.marks.set(d.id,rec);
+  });
+  document.getElementById('batchFixBar').style.display='flex';
+  document.getElementById('btnBatchFix').classList.add('on');
+  _bfCount();
+  showToast(`${targets.length}개 소화전을 끌어서 옮길 수 있습니다`,'ok');
+}
+function _bfMoved(rec){
+  const p=rec.marker.getPosition();
+  const moved=Math.abs(p.getLat()-rec.orig.lat)>1e-7||Math.abs(p.getLng()-rec.orig.lng)>1e-7;
+  rec.line?.setMap(null);rec.line=null;
+  if(moved){
+    // 원래 위치 → 새 위치 점선 표시
+    rec.line=new kakao.maps.Polyline({path:[new kakao.maps.LatLng(rec.orig.lat,rec.orig.lng),p],strokeWeight:2,strokeColor:'#dc2626',strokeOpacity:.8,strokeStyle:'shortdash'});
+    rec.line.setMap(kakaoMap);
+    _bf.changed.add(rec.d.id);
+  }else _bf.changed.delete(rec.d.id);
+  rec.marker.setImage(_bfImg(groupColor(rec.d),moved));
+  overlays[rec.idx]?.labelOverlay?.setPosition(p); // 번호 라벨도 따라 이동
+  _bfCount();
+}
+function _bfRevertOne(rec){
+  const p=new kakao.maps.LatLng(rec.orig.lat,rec.orig.lng);
+  rec.marker.setPosition(p);
+  _bfMoved(rec);
+}
+function revertBatchFix(){
+  if(!_bf||!_bf.changed.size)return;
+  if(!confirm(`변경한 ${_bf.changed.size}개를 모두 원래 위치로 되돌릴까요?`))return;
+  [..._bf.changed].forEach(id=>_bfRevertOne(_bf.marks.get(id)));
+}
+function _bfCount(){
+  const el=document.getElementById('bfCount');
+  if(el)el.textContent=`변경 ${_bf?_bf.changed.size:0}개`;
+}
+function _bfExit(){
+  if(!_bf)return;
+  _bf.marks.forEach(rec=>{
+    rec.marker.setMap(null);rec.line?.setMap(null);
+    const o=overlays[rec.idx];
+    o?.labelOverlay?.setPosition(new kakao.maps.LatLng(rec.d.lat,rec.d.lng)); // 저장 안 한 것은 원위치
+  });
+  _bf=null;
+  document.getElementById('batchFixBar').style.display='none';
+  document.getElementById('btnBatchFix')?.classList.remove('on');
+  applyFilter(); // 숨겼던 원래 마커를 필터 상태대로 다시 표시
+}
+async function saveBatchFix(){
+  if(!_bf||!_bf.changed.size){showToast('변경된 위치가 없습니다','');return;}
+  const ids=[..._bf.changed];
+  const withAddr=document.getElementById('bfAddr').checked;
+  if(!confirm(`${ids.length}개 소화전의 위치${withAddr?'와 주소':''}를 저장할까요?`))return;
+  let ok=0,fail=0,addrFail=0;
+  const now=new Date().toISOString();
+  for(let n=0;n<ids.length;n++){
+    const rec=_bf.marks.get(ids[n]);
+    const p=rec.marker.getPosition(),lat=p.getLat(),lng=p.getLng();
+    showToast(`저장 중… ${n+1}/${ids.length}`,'');
+    try{
+      const payload={lat,lng,loc_fixed_at:now};
+      if(withAddr){const a=await reverseGeocode(lat,lng);if(a)payload.address=a;else addrFail++;}
+      await SupabaseUtil.update('hydmap_items',payload,{id:rec.d.id});
+      const d=rec.d;
+      d.lat=lat;d.lng=lng;d.loc_fixed_at=now;if(payload.address)d.address=payload.address;
+      const o=overlays[rec.idx];
+      if(o){o.overlay?.setPosition(p);o.labelOverlay?.setPosition(p);o.iw?.setPosition(p);o.clMarker?.setPosition(p);}
+      // 저장된 것은 새 위치를 기준점으로
+      rec.orig={lat,lng};
+      rec.line?.setMap(null);rec.line=null;
+      rec.marker.setImage(_bfImg(groupColor(d),false));
+      _bf.changed.delete(d.id);
+      if(o&&o.popupRendered)hyReRender(rec.idx);
+      updateListItem(rec.idx);
+      ok++;
+    }catch(e){fail++;console.error('일괄 위치저장 실패',rec.d.name,e);}
+    _bfCount();
+  }
+  if(clusterer)clusterer.redraw();
+  showToast(`✅ ${ok}개 저장${fail?` · 실패 ${fail}개(다시 저장하세요)`:''}${addrFail?` · 주소 확인 실패 ${addrFail}개(위치만 저장)`:''}`,fail?'err':'ok');
+}
 function confirmAndApplyFixLocation(idx,latLng){
+  stopPreciseGps(); // GPS 측정 중 지도를 직접 눌렀을 때도 측정 종료
   showFixPin(latLng);
   const ok=confirm('📍 이 위치로 저장할까요?');
   if(ok){
@@ -2934,15 +3157,7 @@ function toggleMyLocation(){
   if(fixLocationIdx>=0){
     const idx=fixLocationIdx;
     if(!navigator.geolocation){showToast('이 브라우저는 위치 기능을 지원하지 않습니다','err');return;}
-    showToast('📡 현재 위치 확인 중...','');
-    navigator.geolocation.getCurrentPosition(
-      pos=>{
-        const {latitude:lat,longitude:lng}=pos.coords;
-        confirmAndApplyFixLocation(idx,new kakao.maps.LatLng(lat,lng));
-      },
-      err=>{showToast('현재 위치를 가져오지 못했습니다: '+(err?.message||''),'err');},
-      {enableHighAccuracy:true,timeout:10000}
-    );
+    startPreciseGps(idx);
     return;
   }
   const btn=document.getElementById('btnMyLoc');
