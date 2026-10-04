@@ -515,7 +515,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
         <button class="tool-btn" id="btnDist" onclick="toggleDist()">📏<span class="btn-txt"> 거리</span></button>
         <button class="tool-btn" id="btnRv" onclick="toggleRvMode()">🔭<span class="btn-txt"> 로드뷰</span></button>
         <button class="tool-btn" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 OFF</span></button>
-        <button class="tool-btn on" id="btnTipToggle" onclick="toggleTooltip()" title="마커에 마우스를 올렸을 때 소화전 번호 표시">🔢<span class="btn-txt" id="btnTipToggleTxt"> 툴팁 ON</span></button>
+        <button class="tool-btn on pc-only" id="btnTipToggle" onclick="toggleTooltip()" title="마커에 마우스를 올렸을 때 소화전 번호 표시">🔢<span class="btn-txt" id="btnTipToggleTxt"> 툴팁 ON</span></button>
         <button class="tool-btn pc-only admin-only" id="btnBatchFix" onclick="toggleBatchFix()" title="여러 소화전을 마우스로 끌어 한 번에 위치 수정 (PC 전용)">✋<span class="btn-txt"> 일괄 위치수정</span></button>
         <button class="tool-btn" id="btnDistClear" onclick="clearDist()" style="display:none;font-size:11px;color:var(--hi)">✕<span class="btn-txt"> 초기화</span></button>
       </div>
@@ -780,7 +780,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.2.2'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
