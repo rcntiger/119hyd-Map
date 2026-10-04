@@ -788,7 +788,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.9'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.3.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -891,6 +891,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.body.appendChild(_sharedTooltip);
   document.getElementById('mapView').style.display='none';
   loadProjects();
+  // 홈 화면을 보는 동안 지도 SDK를 미리 받아 둠 (카드 누른 뒤 기다리는 시간 단축)
+  (window.requestIdleCallback||((f)=>setTimeout(f,800)))(()=>loadKakaoSdk().catch(()=>{}));
   // 점검자/점검일자 복원
   const nameEl=document.getElementById('inspNameGlobal');
   const dateEl=document.getElementById('inspDateGlobal');
@@ -1357,9 +1359,17 @@ async function openProject(proj){
   document.getElementById('listEl').innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:30px">지도 초기화 중...</div>';
   const dateEl=document.getElementById('inspDateGlobal');
   if(dateEl&&!dateEl.value)dateEl.value=new Date().toISOString().slice(0,10); // 안전장치: 비어있으면 오늘 날짜로
+  // 지도 SDK·지도 준비와 데이터 받기를 동시에 진행 (예전엔 지도 준비가 끝난 뒤 데이터를 받기 시작)
+  _openT0=performance.now();
+  const pid=currentProject.id;
+  const p=fetchProjectDataJoined(pid);p.catch(()=>{}); // 실패 처리는 loadProjectData에서
+  _prefetch={id:pid,p};
+  const tm=performance.now();
   await initKakaoMap();
+  _mapWaitMs=performance.now()-tm; // 카드 클릭 후 지도 준비를 기다린 시간 (SDK를 미리 받았으면 거의 0)
   await loadProjectData();
 }
+let _prefetch=null,_openT0=0,_mapWaitMs=0;
 // 상단 버튼: 모바일 지도 보기 상태면 목록으로, 아니면 홈으로
 function handleBack(){
   if(window.innerWidth<=600&&mobMapMode){
@@ -1441,7 +1451,8 @@ async function loadProjectData(){
   try{
     let itemsRes,doneArr,memoArr,photosArr,hyArr;
     try{
-      ({itemsRes,doneArr,memoArr,photosArr,hyArr}=await fetchProjectDataJoined(id));
+      const pre=(_prefetch&&_prefetch.id===id)?_prefetch.p:null;_prefetch=null;
+      ({itemsRes,doneArr,memoArr,photosArr,hyArr}=await (pre||fetchProjectDataJoined(id)));
     }catch(joinErr){
       // FK 임베딩 실패(관계 미설정 등) 시 기존 방식으로 폴백
       console.warn('조인 쿼리 실패, 개별 쿼리로 폴백:',joinErr);
@@ -1479,7 +1490,9 @@ async function loadProjectData(){
     applyFilter();
     updateStats();
     const _t3=performance.now();
-    console.info(`[소화전 지도 로딩] 데이터 ${Math.round(_t1-_t0)}ms · 마커 ${Math.round(_t2-_t1)}ms · 목록/필터 ${Math.round(_t3-_t2)}ms · 합계 ${Math.round(_t3-_t0)}ms (${items.length}개)`);
+    console.info(`[소화전 지도 로딩] 데이터 ${Math.round(_t1-_t0)}ms · 마커 ${Math.round(_t2-_t1)}ms · 목록/필터 ${Math.round(_t3-_t2)}ms · 합계 ${Math.round(_t3-_t0)}ms (${items.length}개)`
+      +(_openT0?` · 카드 클릭→완료 ${Math.round(_t3-_openT0)}ms`:'')+(_openT0?` (지도 준비 대기 ${Math.round(_mapWaitMs)}ms)`:''));
+    _openT0=0;_mapWaitMs=0;
   }catch(e){showToast('데이터 로드 실패','err');}
 }
 
@@ -1784,17 +1797,28 @@ function syncMapToolbars(){
   if(tb)tb.style.display=show?'flex':'none';
   if(tbTop){tbTop.style.removeProperty('display');tbTop.style.display=(show&&!rvOpen)?'flex':'none';}
 }
-function initKakaoMap(){
-  // 이미 만들어진 지도로 다른 계획을 다시 열 때도 툴바를 다시 표시해야 한다
-  // (예전엔 처음 한 번만 표시하고, 홈으로 나갈 때 숨긴 뒤 다시 켜지 않아 툴바가 사라지던 버그)
-  if(kakaoMap){document.getElementById('mapPh').style.display='none';syncMapToolbars();return Promise.resolve();}
-  return new Promise((resolve,reject)=>{
+// ── 카카오 지도 SDK 받기 (한 번만) ──
+// 홈 화면이 뜬 직후 미리 받아 두면, 카드를 눌렀을 때 SDK를 기다리지 않고 바로 지도를 만든다.
+let _sdkPromise=null,_sdkMs=0;
+function loadKakaoSdk(){
+  if(_sdkPromise)return _sdkPromise;
+  const t0=performance.now();
+  _sdkPromise=new Promise((resolve,reject)=>{
+    if(window.kakao&&kakao.maps&&kakao.maps.Map){resolve();return;}
     const timer=setTimeout(()=>reject(new Error('TIMEOUT')),10000);
     const s=document.createElement('script');
     s.src=`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${JS_KEY}&autoload=false&libraries=services,clusterer`;
     s.onerror=()=>{clearTimeout(timer);reject(new Error('SCRIPT_LOAD'));};
-    s.onload=()=>{kakao.maps.load(()=>{
-      clearTimeout(timer);
+    s.onload=()=>{kakao.maps.load(()=>{clearTimeout(timer);_sdkMs=performance.now()-t0;resolve();});};
+    document.head.appendChild(s);
+  }).catch(e=>{_sdkPromise=null;throw e;}); // 실패하면 다음에 다시 시도할 수 있게
+  return _sdkPromise;
+}
+function initKakaoMap(){
+  // 이미 만들어진 지도로 다른 계획을 다시 열 때도 툴바를 다시 표시해야 한다
+  // (예전엔 처음 한 번만 표시하고, 홈으로 나갈 때 숨긴 뒤 다시 켜지 않아 툴바가 사라지던 버그)
+  if(kakaoMap){document.getElementById('mapPh').style.display='none';syncMapToolbars();return Promise.resolve();}
+  return loadKakaoSdk().then(()=>new Promise((resolve,reject)=>{
       try{
         document.getElementById('mapPh').style.display='none';
         kakaoMap=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(37.46,126.90),level:5});
@@ -1823,9 +1847,7 @@ function initKakaoMap(){
         kakao.maps.event.addListener(kakaoMap,'dblclick',()=>{if(distMode)finishDist();});
         resolve();
       }catch(e){reject(new Error('MAP_CREATE'));}
-    });};
-    document.head.appendChild(s);
-  }).catch(e=>{showDiag(e.message);});
+  })).catch(e=>{showDiag(e.message);});
 }
 function showDiag(code){
   const msgs={'TIMEOUT':{t:'도메인 미등록',d:'Kakao 콘솔에 현재 도메인을 등록하세요.',f:'developers.kakao.com → 내 애플리케이션 → 플랫폼 → Web'},'SCRIPT_LOAD':{t:'JS 키 오류',d:'403 오류',f:'JS 키와 도메인 확인'}};
