@@ -39,6 +39,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac)}
    → 화면에서 본 모습 = 인쇄 결과가 되어, 인쇄 시 레이아웃이 다시 계산되며 지도 중심이 틀어지는 일이 없다.
    (모바일 반응형 규칙보다 우선하도록 !important 사용) */
 #printMapTitle,#printBar{display:none}
+/* 관리자 전용: 로그인한 관리자에게만 보임 (실제 권한은 Supabase RLS가 막고, 화면은 버튼만 정리) */
+body:not(.is-admin) .admin-only,body:not(.is-admin) .project-card-updown,body:not(.is-admin) .project-card-del,
+body:not(.is-admin) .project-card-edit,body:not(.is-admin) .subplan-btn{display:none!important}
+#adminBadge{margin-left:auto;display:flex;align-items:center;gap:6px}
 @media (max-width:768px),(pointer:coarse){.pc-only{display:none!important}}
 html.printing-map,html.printing-map body{background:#525659!important;overflow:auto!important}
 html.printing-map #mapHeader,html.printing-map .sidebar,html.printing-map .map-toolbar,html.printing-map .map-toolbar-top,html.printing-map .map-search,html.printing-map #mapSearchResults,html.printing-map .dist-info,html.printing-map #toast,html.printing-map .mob-toggle{display:none!important}
@@ -370,17 +374,21 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
       <div class="home-title">소화전 점검 지도</div>
       <div class="home-subtitle">금천소방서 · 소화전 점검</div>
     </div>
+    <div id="adminBadge">
+      <span id="adminWho" style="font-size:11.5px;color:var(--lo);font-weight:700;display:none"></span>
+      <button class="btn btn-ghost" id="adminBtn" onclick="adminButton()" style="padding:5px 11px;font-size:12px;font-weight:700">🔐 관리자</button>
+    </div>
   </div>
   <div class="home-content">
     <div class="section-header" style="margin-top:20px">
       <div class="section-title">계획 목록</div>
-      <button class="btn btn-primary" onclick="showCreateModal()">+ 새 계획</button>
+      <button class="btn btn-primary admin-only" onclick="showCreateModal()">+ 새 계획</button>
     </div>
     <div class="project-grid" id="projectGrid">
       <div class="empty-state" id="projectEmpty" style="grid-column:1/-1;display:none">
         <div class="big">📋</div>
         <p>등록된 계획 목록이 없습니다</p>
-        <button class="btn btn-primary" onclick="showCreateModal()">+ 새 계획 만들기</button>
+        <button class="btn btn-primary admin-only" onclick="showCreateModal()">+ 새 계획 만들기</button>
       </div>
     </div>
     <div id="appVersion" style="text-align:center;color:var(--mt);font-size:10.5px;padding:24px 0 12px;opacity:.6"></div>
@@ -395,8 +403,8 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
       <span class="map-header-title" id="mapHeaderTitle">점검 지도</span>
     </div>
     <div class="map-header-row2">
-      <button class="btn btn-ghost" onclick="showUploadModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">📂 소화전 업로드</button>
-      <button class="btn btn-ghost" onclick="showResetColModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">🔧 데이터 재설정</button>
+      <button class="btn btn-ghost admin-only" onclick="showUploadModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">📂 소화전 업로드</button>
+      <button class="btn btn-ghost admin-only" onclick="showResetColModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">🔧 데이터 재설정</button>
       <button class="btn" onclick="exportExcel()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0;background:#22c55e;color:#fff;border:1px solid #22c55e">📊 결과 파일출력</button>
       <button class="btn btn-ghost" onclick="showPrintModal()" style="padding:5px 12px;font-size:12px;font-weight:700;flex-shrink:0">🖨 인쇄</button>
     </div>
@@ -506,7 +514,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
         <button class="tool-btn" id="btnRv" onclick="toggleRvMode()">🔭<span class="btn-txt"> 로드뷰</span></button>
         <button class="tool-btn" id="btnLabelToggle" onclick="toggleLabelVisibility()">🏷️<span class="btn-txt" id="btnLabelToggleTxt"> 이름 OFF</span></button>
         <button class="tool-btn on" id="btnTipToggle" onclick="toggleTooltip()" title="마커에 마우스를 올렸을 때 소화전 번호 표시">🔢<span class="btn-txt" id="btnTipToggleTxt"> 툴팁 ON</span></button>
-        <button class="tool-btn pc-only" id="btnBatchFix" onclick="toggleBatchFix()" title="여러 소화전을 마우스로 끌어 한 번에 위치 수정 (PC 전용)">✋<span class="btn-txt"> 일괄 위치수정</span></button>
+        <button class="tool-btn pc-only admin-only" id="btnBatchFix" onclick="toggleBatchFix()" title="여러 소화전을 마우스로 끌어 한 번에 위치 수정 (PC 전용)">✋<span class="btn-txt"> 일괄 위치수정</span></button>
         <button class="tool-btn" id="btnDistClear" onclick="clearDist()" style="display:none;font-size:11px;color:var(--hi)">✕<span class="btn-txt"> 초기화</span></button>
       </div>
       <div class="map-toolbar" id="mapToolbar">
@@ -538,6 +546,20 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
     </div>
   </div>
   <button class="mob-toggle" id="mobToggle" onclick="toggleMobView()">🗺️ 지도 보기</button>
+</div>
+
+<!-- ════ 모달: 관리자 로그인 ════ -->
+<div class="modal-bg" id="adminModal">
+  <div class="modal" style="max-width:360px">
+    <h3>🔐 관리자 로그인</h3>
+    <div style="font-size:12px;color:var(--mt);margin-bottom:12px;line-height:1.5">계획 만들기·엑셀 업로드·데이터 재설정·세분계획·일괄 위치수정은 관리자만 할 수 있습니다. 점검 입력은 로그인 없이 가능합니다.</div>
+    <div class="form-row"><label>이메일</label><input type="email" id="adminEmail" autocomplete="username"></div>
+    <div class="form-row"><label>비밀번호</label><input type="password" id="adminPw" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-ghost" onclick="hideModal('adminModal')">취소</button>
+      <button class="btn btn-primary" id="adminLoginBtn" onclick="adminLogin()">로그인</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════ 모달: 변경 이력 ════ -->
@@ -739,7 +761,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.9.3'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.0.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -828,6 +850,8 @@ const sbClient=()=>SupabaseUtil.getClient();
 /* ══════════ Init ══════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   SupabaseUtil.init(SB_URL,SB_KEY);
+  _checkAdminSession();
+  try{SupabaseUtil.getClient().auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')_setAdmin(false);});}catch{}
   tooltipOn=safeStorage.get('hy_tooltip_on','1')!=='0';
   _applyTooltipBtn();
   // 버전 표시: 화면 하단(캐시된 옛 버전인지 사용자가 바로 확인 가능) + 콘솔(문의 대응용)
@@ -846,6 +870,67 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(nameEl)nameEl.value=safeStorage.get('hy_insp_name');
   if(dateEl)dateEl.value=new Date().toISOString().slice(0,10); // 점검일자는 항상 오늘 날짜로 자동 입력
 });
+/* ══════════ 관리자 로그인 (Supabase Auth) ══════════
+   로그인 세션은 SupabaseUtil의 같은 클라이언트에 붙으므로, 이후 모든 DB 요청이 관리자 권한으로 나간다.
+   관리자 여부는 DB의 hydmap_admins 목록으로 판단 (hydmap_is_admin 함수) — 회원가입만 해서는 관리자가 될 수 없음. */
+let isAdmin=false;
+function _setAdmin(on,email){
+  isAdmin=!!on;
+  document.body.classList.toggle('is-admin',isAdmin);
+  const who=document.getElementById('adminWho'),btn=document.getElementById('adminBtn');
+  if(who){who.style.display=isAdmin?'':'none';who.textContent=isAdmin?`👤 관리자 ${email||''}`:'';}
+  if(btn)btn.textContent=isAdmin?'로그아웃':'🔐 관리자';
+}
+async function _checkAdminSession(){
+  try{
+    const c=SupabaseUtil.getClient();
+    const {data}=await c.auth.getSession();
+    const sess=data?.session;
+    if(!sess){_setAdmin(false);return;}
+    const {data:ok,error}=await c.rpc('hydmap_is_admin');
+    if(error)throw error;
+    _setAdmin(!!ok,sess.user?.email);
+  }catch(e){console.warn('관리자 확인 실패',e);_setAdmin(false);}
+}
+function adminButton(){
+  if(isAdmin){adminLogout();return;}
+  document.getElementById('adminPw').value='';
+  showModal('adminModal');
+  setTimeout(()=>document.getElementById(document.getElementById('adminEmail').value?'adminPw':'adminEmail').focus(),50);
+}
+async function adminLogin(){
+  const email=document.getElementById('adminEmail').value.trim(),pw=document.getElementById('adminPw').value;
+  if(!email||!pw){showToast('이메일과 비밀번호를 입력하세요','err');return;}
+  const btn=document.getElementById('adminLoginBtn');btn.disabled=true;btn.textContent='확인 중...';
+  try{
+    const c=SupabaseUtil.getClient();
+    const {error}=await c.auth.signInWithPassword({email,password:pw});
+    if(error)throw error;
+    const {data:ok,error:e2}=await c.rpc('hydmap_is_admin');
+    if(e2)throw e2;
+    if(!ok){await c.auth.signOut();showToast('관리자 권한이 없는 계정입니다','err');return;}
+    _setAdmin(true,email);
+    hideModal('adminModal');
+    showToast('관리자로 로그인했습니다','ok');
+  }catch(e){
+    const m=String(e?.message||'');
+    showToast(/Invalid login/i.test(m)?'이메일 또는 비밀번호가 맞지 않습니다':/hydmap_is_admin/i.test(m)?'관리자 설정(SQL)이 아직 적용되지 않았습니다':'로그인 실패: '+m,'err');
+  }finally{btn.disabled=false;btn.textContent='로그인';}
+}
+async function adminLogout(){
+  if(!confirm('관리자 로그아웃할까요?'))return;
+  try{await SupabaseUtil.getClient().auth.signOut();}catch{}
+  _setAdmin(false);
+  if(_bf)_bfExit();
+  showToast('로그아웃했습니다','');
+}
+// 관리자 전용 동작 앞에서 호출 (버튼이 숨겨져 있어도 다른 경로로 불릴 수 있으니 한 번 더 확인)
+function requireAdmin(){
+  if(isAdmin)return true;
+  showToast('관리자만 할 수 있는 작업입니다. 홈 화면 오른쪽 위 🔐 관리자로 로그인하세요','err');
+  return false;
+}
+
 function saveInspName(){safeStorage.set('hy_insp_name',document.getElementById('inspNameGlobal').value.trim());}
 function saveInspDate(){safeStorage.set('hy_insp_date',document.getElementById('inspDateGlobal').value);}
 function getInspName(){return document.getElementById('inspNameGlobal')?.value.trim()||'';}
@@ -868,6 +953,7 @@ function expireBadgeHtml(expire_at){
 // 세분계획은 자체 items를 갖지 않고, 열면 부모 데이터를 해당 조 필터로 잠가서 보여준다.
 // 재실행하면 기존 세분계획을 지우고 현재 데이터 기준으로 다시 만든다 (엑셀 재업로드 후 갱신용).
 async function generateSubPlans(parentId){
+  if(!requireAdmin())return;
   const parent=projectList.find(x=>String(x.id)===String(parentId));
   if(!parent){showToast('계획을 찾을 수 없습니다','err');return;}
   showToast('팀/조 정보 확인 중...','');
@@ -1080,6 +1166,7 @@ function toggleTree(id,def){
 }
 // 드래그가 잘 안 될 때를 위한 대안: 버튼으로 한 칸씩 순서 이동
 async function moveProject(id,dir){
+  if(!requireAdmin())return;
   const i=projectList.findIndex(x=>String(x.id)===String(id));
   const j=i+dir;
   if(i<0||j<0||j>=projectList.length)return;
@@ -1091,9 +1178,10 @@ async function moveProject(id,dir){
   }catch(e){showToast('순서 저장 실패: '+e.message,'err');}
 }
 
-function showCreateModal(){document.getElementById('projName').value='';document.getElementById('projDesc').value='';document.getElementById('projExpire').value='';showModal('createModal');}
+function showCreateModal(){if(!requireAdmin())return;document.getElementById('projName').value='';document.getElementById('projDesc').value='';document.getElementById('projExpire').value='';showModal('createModal');}
 
 function showEditModal(id){
+  if(!requireAdmin())return;
   const p=projectList.find(x=>String(x.id)===String(id));
   if(!p){showToast('프로젝트 정보를 찾을 수 없습니다','err');return;}
   document.getElementById('editProjId').value=p.id;
@@ -1155,6 +1243,7 @@ async function createProject(){
   }catch(e){showToast('생성 실패','err');}
 }
 async function deleteProject(id,name){
+  if(!requireAdmin())return;
   if(!confirm(`"${name}" 프로젝트를 삭제하시겠습니까?\n(모든 점검 데이터 및 사진 기록, 원본 파일이 삭제됩니다)`))return;
   try{
     showToast('삭제 중...','');
@@ -2656,6 +2745,7 @@ function getExcelReader(){
 
 // ━━ 업로드 ━━
 function showUploadModal(){
+  if(!requireAdmin())return;
   if(!currentProject){showToast('프로젝트를 먼저 선택하세요','err');return;}
   if(items.length>0){
     const ok=confirm(`이미 업로드된 소화전 ${items.length}개가 있습니다.\n엑셀을 다시 업로드하면 기존 데이터(점검 기록 포함)는 모두 삭제되고 새 엑셀 내용으로 교체됩니다.\n계속하시겠습니까?`);
@@ -2675,6 +2765,7 @@ function showUploadModal(){
 
 // ━━ 컬럼 재설정 ━━
 async function showResetColModal(){
+  if(!requireAdmin())return;
   if(!currentProject){showToast('프로젝트를 먼저 선택하세요','err');return;}
   document.getElementById('resetDelDone').checked=false;
   document.getElementById('resetDelMemo').checked=false;
@@ -3183,6 +3274,7 @@ function toggleBatchFix(){
     if(_bf.changed.size&&!confirm(`저장하지 않은 변경 ${_bf.changed.size}개가 있습니다. 버리고 종료할까요?`))return;
     _bfExit();return;
   }
+  if(!requireAdmin())return;
   if(window.innerWidth<=768||matchMedia('(pointer:coarse)').matches){showToast('일괄 위치수정은 PC 화면에서만 사용할 수 있습니다','err');return;}
   if(!kakaoMap||!items.length)return;
   const targets=items.map((d,i)=>({d,i})).filter(({d})=>d.lat&&d.lng&&!isHidden(d));
