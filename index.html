@@ -780,7 +780,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.2.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1691,6 +1691,30 @@ function clearPickedFilter(){
 // ⚠ 카카오 CustomOverlay는 이미 지도에 있는데 setMap(map)을 또 부르면 다시 그리면서 크기를 측정해
 //   화면 전체 레이아웃을 강제로 다시 계산한다. 850개 × (마커+라벨)을 매번 이렇게 하면 수십 초가 걸렸다
 //   (로딩 측정: 목록/필터 34초). 상태가 같으면 아무것도 하지 않는다.
+/* ── 축소 시 개별 마커 숨김 ──
+   축소(확대 단계 6 이상, 클러스터가 켜지는 단계)에서는 개별 마커·라벨 850개를 지도에서 내리고 묶음 원만 보여준다.
+   카카오는 확대/축소할 때마다 지도에 올라간 오버레이를 전부 다시 배치하는데, 마커+라벨 1,700개를
+   매 단계 다시 그리느라 축소 시 화면이 멈추던 문제. 번호 라벨은 글자가 겹쳐 읽을 수 없는 단계 5부터 숨긴다.
+   (인쇄 미리보기 중에는 이 규칙을 끈다 — 축소 상태로도 마커를 인쇄해야 하므로) */
+const ZOOM_FAR_LEVEL=6, LABEL_FAR_LEVEL=5;
+let _zoomFar=false,_labelFar=false,_zoomRuleOff=false;
+function _calcZoomFlags(){
+  const lv=kakaoMap?kakaoMap.getLevel():1;
+  return {far:!_zoomRuleOff&&lv>=ZOOM_FAR_LEVEL,lfar:!_zoomRuleOff&&lv>=LABEL_FAR_LEVEL};
+}
+function syncZoomVisibility(force){
+  const f=_calcZoomFlags();
+  if(!force&&f.far===_zoomFar&&f.lfar===_labelFar)return; // 경계를 넘을 때만 처리
+  _zoomFar=f.far;_labelFar=f.lfar;
+  if(fixLocationIdx>=0)return; // 위치 수정 중엔 그 화면 규칙 유지
+  Object.entries(overlays).forEach(([i,o])=>{
+    const d=items[i];if(!d)return;
+    const hide=isHidden(d);
+    _ovSet(o.overlay,!hide&&!_zoomFar);
+    _ovSet(o.labelOverlay,!hide&&labelsOn&&!_labelFar);
+  });
+}
+function setZoomRuleOff(off){_zoomRuleOff=!!off;syncZoomVisibility(true);}
 function _ovSet(ov,on){
   if(!ov)return;
   if(!!ov.getMap()!==on)ov.setMap(on?kakaoMap:null);
@@ -1704,8 +1728,8 @@ function applyFilter(){
     if(li&&li.classList.contains('hidden')!==hide)li.classList.toggle('hidden',hide);
     const o=overlays[i];
     if(o){
-      _ovSet(o.overlay,!hide);
-      _ovSet(o.labelOverlay,!hide&&labelsOn);
+      _ovSet(o.overlay,!hide&&!_zoomFar);
+      _ovSet(o.labelOverlay,!hide&&labelsOn&&!_labelFar);
       // 클러스터러 계산용 invisible 마커도 같이 빼줘야 카카오 기본 풍선이 남지 않음
       if(clusterer&&o.clMarker&&o.hidden!==hide){
         if(hide)toRemove.push(o.clMarker);
@@ -1777,6 +1801,8 @@ function initKakaoMap(){
         });
         // 모바일은 지도 보기 클릭 시 툴바 표시, PC는 항상 표시
         syncMapToolbars();
+        kakao.maps.event.addListener(kakaoMap,'zoom_changed',()=>syncZoomVisibility(false));
+        const _f=_calcZoomFlags();_zoomFar=_f.far;_labelFar=_f.lfar;
         kakao.maps.event.addListener(kakaoMap,'click',(e)=>{
           document.getElementById('mapSearchResults').style.display='none';
           if(fixLocationIdx>=0){confirmAndApplyFixLocation(fixLocationIdx,e.latLng);return;}
@@ -1925,7 +1951,7 @@ function addMarker(idx,d){
     xAnchor:0.5,yAnchor:0, // 라벨 위쪽 = 소화전 좌표, margin-top으로 아이콘 아래 3px 간격 (라벨 높이와 무관하게 일정)
     zIndex:9,
   });
-  if(labelsOn&&!isHidden(d))labelOverlay.setMap(kakaoMap);
+  if(labelsOn&&!isHidden(d)&&!_labelFar)labelOverlay.setMap(kakaoMap);
 
   const iwEl=document.createElement('div');
   iwEl.className='iw-wrap';
@@ -1973,7 +1999,7 @@ function addMarker(idx,d){
   // 성능: 처음부터 필터 상태대로 만든다. 예전엔 848개를 전부 지도에 올린 뒤 applyFilter가 800개를 다시 내려서
   //       조 카드로 들어갈 때마다 DOM 추가·삭제가 두 번씩 일어나 초기화가 느렸다.
   const hideNow=isHidden(d);
-  if(!hideNow)overlay.setMap(kakaoMap);
+  if(!hideNow&&!_zoomFar)overlay.setMap(kakaoMap);
   // 클러스터러용 invisible 마커 (줌 레벨 6 이상에서 클러스터로 묶임)
   // ⚠ opacity:0만으로는 클러스터러가 줌인 시 마커를 재표시할 때 카카오 기본 풍선 아이콘이 노출됨
   //    → 완전 투명 1x1 PNG를 마커 이미지로 지정해 원천 차단
@@ -2673,8 +2699,8 @@ function setOtherMarkersHidden(exceptIdx,hidden){
       _ovSet(o.overlay,false);
       _ovSet(o.labelOverlay,false);
     }else if(!o.hidden){ // 그룹/검색 필터로 원래 숨겨진 마커는 복원하지 않음
-      _ovSet(o.overlay,true);
-      _ovSet(o.labelOverlay,labelsOn);
+      _ovSet(o.overlay,!_zoomFar);
+      _ovSet(o.labelOverlay,labelsOn&&!_labelFar);
     }
   });
 }
@@ -3828,6 +3854,7 @@ function _printMap(scope,list,showLabels,perJo,opt){
     document.documentElement.classList.remove('printing-map');
     syncMapToolbars();
     if(clusterer&&clusterer.setMinLevel){clusterer.setMinLevel(6);clusterer.redraw();}
+    setZoomRuleOff(false);
     labelBackup.forEach(([el,t])=>{el.textContent=t;});
     pickedIds=prev.ids;pickedFilterActive=prev.active;
     if(labelsOn!==prev.labels)toggleLabelVisibility();
@@ -3836,6 +3863,7 @@ function _printMap(scope,list,showLabels,perJo,opt){
   };
   pages.forEach(pg=>{pg.orient=orientSetting==='auto'?(pg.anchor?'landscape':_autoOrient(pg.pts)):orientSetting;});
   if(clusterer&&clusterer.setMinLevel){clusterer.setMinLevel(20);clusterer.redraw();}
+  setZoomRuleOff(true);
   let finalPages=pages;
   if(scaleMode==='current'){
     // 화면 축척 그대로: 각 페이지(조)를 그 축척에서 용지 한 장 크기로 나눔
@@ -4080,7 +4108,7 @@ function toggleLabelVisibility(){
   Object.entries(overlays).forEach(([i,o])=>{
     if(!o.labelOverlay)return;
     const hide=!items[i]||isHidden(items[i]);
-    _ovSet(o.labelOverlay,!hide&&labelsOn);
+    _ovSet(o.labelOverlay,!hide&&labelsOn&&!_labelFar);
   });
 }
 function toggleSat(){satMode=!satMode;const btn=document.getElementById('btnSat');if(satMode){kakaoMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID);btn.classList.add('on-sat');btn.innerHTML='🗺️<span class="btn-txt"> 일반</span>';}else{kakaoMap.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);btn.classList.remove('on-sat');btn.innerHTML='🛰️<span class="btn-txt"> 위성</span>';}}
