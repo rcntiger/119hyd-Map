@@ -739,7 +739,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.8.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v1.9.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1287,6 +1287,7 @@ async function fetchProjectDataSeparate(id){
 }
 async function loadProjectData(){
   if(!currentProject)return;
+  const _t0=performance.now();let _t1=_t0,_t2=_t0;
   const id=currentProject.id;
   try{
     let itemsRes,doneArr,memoArr,photosArr,hyArr;
@@ -1298,6 +1299,7 @@ async function loadProjectData(){
       ({itemsRes,doneArr,memoArr,photosArr,hyArr}=await fetchProjectDataSeparate(id));
     }
     items=itemsRes;
+    _t1=performance.now();
     // 그룹 색상 맵 초기화 (순서 보장을 위해 items 순서대로 등록)
     Object.keys(_groupColorMap).forEach(k=>delete _groupColorMap[k]);
     items.forEach(d=>{if(d.group_name)groupColor(d);});
@@ -1320,12 +1322,15 @@ async function loadProjectData(){
     groups.forEach(g=>groupColor({group_name:g}));
     buildGroupFilter();
     renderAllMarkers();
+    _t2=performance.now();
     renderList();
     // 세분계획(팀/조 잠금)으로 진입한 경우 등 초기 필터 상태를 마커/목록에 즉시 반영
     // (예전엔 필터를 한 번 조작해야 숨김이 적용되어, 팀 카드로 들어가도 처음엔 전체가 보이던 버그)
     applyFilter();
     updateStats();
     if(items.length)fitAll();
+    const _t3=performance.now();
+    console.info(`[소화전 지도 로딩] 데이터 ${Math.round(_t1-_t0)}ms · 마커 ${Math.round(_t2-_t1)}ms · 목록/필터 ${Math.round(_t3-_t2)}ms · 합계 ${Math.round(_t3-_t0)}ms (${items.length}개)`);
   }catch(e){showToast('데이터 로드 실패','err');}
 }
 
@@ -1663,9 +1668,14 @@ function clearMapOverlays(){
   if(clusterer)clusterer.clear();
   overlays={};
 }
+let _clBatch=null;
 function renderAllMarkers(){
   clearMapOverlays();
+  _clBatch=[];
   items.forEach((d,i)=>{if(d.lat&&d.lng)addMarker(i,d);});
+  if(clusterer&&_clBatch.length)clusterer.addMarkers(_clBatch,true);
+  _clBatch=null;
+  if(clusterer)clusterer.redraw();
 }
 let _transparentMarkerImg=null;
 function getTransparentMarkerImage(){
@@ -1729,7 +1739,7 @@ function addMarker(idx,d){
     xAnchor:0.5,yAnchor:0, // 라벨 위쪽 = 소화전 좌표, margin-top으로 아이콘 아래 3px 간격 (라벨 높이와 무관하게 일정)
     zIndex:9,
   });
-  if(labelsOn)labelOverlay.setMap(kakaoMap);
+  if(labelsOn&&!isHidden(d))labelOverlay.setMap(kakaoMap);
 
   const iwEl=document.createElement('div');
   iwEl.className='iw-wrap';
@@ -1774,13 +1784,17 @@ function addMarker(idx,d){
   el.addEventListener('touchmove',()=>{_touchMoved=true;},{passive:true});
   el.addEventListener('touchend',e=>{e.stopPropagation();if(!_touchMoved){e.preventDefault();openIw();}},{passive:false});
   const overlay=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(d.lat,d.lng),content:el,zIndex:10});
-  overlay.setMap(kakaoMap);
+  // 성능: 처음부터 필터 상태대로 만든다. 예전엔 848개를 전부 지도에 올린 뒤 applyFilter가 800개를 다시 내려서
+  //       조 카드로 들어갈 때마다 DOM 추가·삭제가 두 번씩 일어나 초기화가 느렸다.
+  const hideNow=isHidden(d);
+  if(!hideNow)overlay.setMap(kakaoMap);
   // 클러스터러용 invisible 마커 (줌 레벨 6 이상에서 클러스터로 묶임)
   // ⚠ opacity:0만으로는 클러스터러가 줌인 시 마커를 재표시할 때 카카오 기본 풍선 아이콘이 노출됨
   //    → 완전 투명 1x1 PNG를 마커 이미지로 지정해 원천 차단
   const clMarker=new kakao.maps.Marker({position:new kakao.maps.LatLng(d.lat,d.lng),image:getTransparentMarkerImage()});
-  if(clusterer)clusterer.addMarker(clMarker,true);
-  overlays[idx]={overlay,iw,clMarker,labelOverlay,hidden:false,popupRendered:false};
+  // 클러스터러에는 보이는 것만, 그리고 renderAllMarkers에서 한 번에 넣는다 (_clBatch)
+  if(clusterer&&!hideNow){if(_clBatch)_clBatch.push(clMarker);else{clusterer.addMarker(clMarker);}}
+  overlays[idx]={overlay,iw,clMarker,labelOverlay,hidden:hideNow,popupRendered:false};
 }
 // 팝업이 아직 한 번도 렌더링되지 않았으면 지금 렌더링하고 표시해둔다 (idempotent)
 function ensurePopupRendered(idx){
@@ -2493,6 +2507,17 @@ function startFixLocation(idx){
   hyReRender(idx);
 }
 // 좌표 → 주소 역지오코딩 (지도를 클릭했을 때 그 지점의 주소를 함께 받아오기 위함)
+// 좌표 → {road:도로명주소, jibun:지번주소}
+async function reverseGeocode2(lat,lng){
+  try{
+    const r=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
+    if(r.ok){
+      const doc=(await r.json()).documents?.[0];
+      if(doc)return {road:doc.road_address?.address_name||null,jibun:doc.address?.address_name||null};
+    }
+  }catch{}
+  return {road:null,jibun:null};
+}
 async function reverseGeocode(lat,lng){
   try{
     const r=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
@@ -2511,14 +2536,17 @@ async function applyFixLocation(idx,latLng){
   const lat=latLng.getLat(),lng=latLng.getLng();
   try{
     showToast('주소 확인 중...','');
-    const addr=await reverseGeocode(lat,lng);
+    const ra=await reverseGeocode2(lat,lng);
+    const addr=ra.road||ra.jibun;
     const from={lat:d.lat,lng:d.lng,address:d.address||''};
     const method=_fixMeta?.method||'지도 클릭';_fixMeta=null;
     const payload={lat,lng,loc_fixed_at:new Date().toISOString()};
     if(addr)payload.address=addr;
+    if(ra.jibun)payload.extra={...(d.extra||{}),'지번주소':ra.jibun};
     await SupabaseUtil.update('hydmap_items',payload,{id:d.id});
     d.lat=lat;d.lng=lng;d.loc_fixed_at=payload.loc_fixed_at;
     if(addr)d.address=addr;
+    if(payload.extra)d.extra=payload.extra;
     logHistory(d,'위치 수정',{method,from:from.lat?from:null,to:{lat,lng,address:d.address||''}});
     // 기존 오버레이/클러스터 마커 위치 이동 (재생성 없이 좌표만 갱신)
     const o=overlays[idx];
@@ -2600,7 +2628,8 @@ function getExcelReader(){
   excelReader=ExcelUtil.createReader({
     columns:[
       {id:'name',label:'이름',required:true,keywords:['이름','명칭','건물','시설','대상','name','번호','용수']},
-      {id:'addr',label:'주소',required:true,keywords:['주소','도로','지번','위치','addr']},
+      {id:'addr',label:'도로명주소',required:true,keywords:['도로명','주소','도로','위치','addr']},
+      {id:'jibun',label:'지번주소',keywords:['지번']},
       {id:'lat',label:'위도',keywords:['위도','lat','latitude','y좌표']},
       {id:'lng',label:'경도',keywords:['경도','lng','lon','longitude','x좌표']},
       {id:'team',label:'팀',keywords:['팀','team','부서']},
@@ -2687,7 +2716,7 @@ async function _onExcelConfirm(headers,rows,mapping){
     return null;
   };
   const iName=_mi('name'),iAddr=_mi('addr'),iLat=_mi('lat'),iLng=_mi('lng'),
-        iTeam=_mi('team'),iGroup=_mi('group'),iType=_mi('type'),iExtra=_mi('extra');
+        iTeam=_mi('team'),iGroup=_mi('group'),iType=_mi('type'),iExtra=_mi('extra'),iJibun=_mi('jibun');
   console.debug('excel mapping 수신:',mapping,'→ 해석:',{iName,iAddr,iLat,iLng,iTeam,iGroup,iType,iExtra});
   if(iName==null){
     showToast('이름 컬럼이 매핑되지 않았습니다. 컬럼 설정을 확인해주세요.','err');
@@ -2708,7 +2737,7 @@ async function _onExcelConfirm(headers,rows,mapping){
     // 정보카드는 extra의 모든 키-값을 동적으로 표시하므로, 컬럼이 늘어나면 카드 표시도 자동으로 늘어난다.
     // 구버전 excel.js(_dynCols 없음)에서도 그대로 동작하도록 방어적으로 처리.
     if(Array.isArray(mapping._dynCols)){
-      const baseIds=new Set(['name','addr','lat','lng','team','group','type','extra']);
+      const baseIds=new Set(['name','addr','jibun','lat','lng','team','group','type','extra']);
       mapping._dynCols.forEach(col=>{
         if(baseIds.has(col.id))return; // 기본 컬럼은 위에서 이미 처리됨
         const colIdx=mapping[col._id]??mapping[col.id];
@@ -2717,6 +2746,7 @@ async function _onExcelConfirm(headers,rows,mapping){
         if(val)extraObj[col.label||headers[colIdx]||'정보']=val;
       });
     }
+    if(iJibun!=null){const j=String(r[iJibun]||'').trim();if(j)extraObj['지번주소']=j;}
     if(hydrantType)extraObj._type=hydrantType;
     // 엑셀에 위도/경도 컬럼이 매핑되어 있으면 그 값을 바로 사용 (지오코딩보다 정확함).
     // 값이 없거나 숫자가 아니면 null로 두고, 이후 업로드 단계에서 주소로 지오코딩해서 채운다.
@@ -2922,7 +2952,7 @@ async function exportExcel(){
     const rec=hydrantMap[d.id];
     return{
       '수정여부':rec?'✏️ 수정됨':'',
-      '이름':d.name,'주소':d.address||'','그룹':d.group_name||'',
+      '이름':d.name,'도로명주소':d.address||'','지번주소':d.extra?.['지번주소']||'','그룹':d.group_name||'',
       '소화전종류':typeLabel[rec?.hydrant_type]||'',
       '도색상태':yesMidNo[rec?.paint]||'',
       '보온상태':insulLabel[rec?.insul]||'',
@@ -3222,10 +3252,14 @@ async function saveBatchFix(){
     try{
       const payload={lat,lng,loc_fixed_at:now};
       const from={lat:rec.d.lat,lng:rec.d.lng,address:rec.d.address||''};
-      if(withAddr){const a=await reverseGeocode(lat,lng);if(a)payload.address=a;else addrFail++;}
+      if(withAddr){
+        const ra=await reverseGeocode2(lat,lng);
+        if(ra.road||ra.jibun)payload.address=ra.road||ra.jibun;else addrFail++;
+        if(ra.jibun)payload.extra={...(rec.d.extra||{}),'지번주소':ra.jibun};
+      }
       await SupabaseUtil.update('hydmap_items',payload,{id:rec.d.id});
       const d=rec.d;
-      d.lat=lat;d.lng=lng;d.loc_fixed_at=now;if(payload.address)d.address=payload.address;
+      d.lat=lat;d.lng=lng;d.loc_fixed_at=now;if(payload.address)d.address=payload.address;if(payload.extra)d.extra=payload.extra;
       logHistory(d,'위치 수정',{method:'일괄(PC)',from,to:{lat,lng,address:d.address||''}});
       const o=overlays[rec.idx];
       if(o){o.overlay?.setPosition(p);o.labelOverlay?.setPosition(p);o.iw?.setPosition(p);o.clMarker?.setPosition(p);}
@@ -3475,10 +3509,10 @@ function _printList(scope,list,opt){
     const trs=rows.map((d,i)=>{
       const rec=hydrantMap[d.id];
       const res=rec?.result?hyStatusInfo(rec).label.replace(/^[^ ]+ /,''):'';
-      return `<tr${A&&d===A?' style="background:#fee2e2"':''}><td class="c">${i+1}</td>${A?`<td class="c">${d===A?'기준':Math.round(_distM(A,d))+'m'}</td>`:''}<td class="b">${esc(_shortNo(d.name))}</td><td>${esc((d.address||'').replace('서울특별시 금천구 ',''))}</td><td class="c">${typeTxt(d)}</td><td class="c">${esc(res)}</td><td class="c">${rec?.paint?PAINT_LABEL[rec.paint]:''}</td><td class="c">${rec?.insul?INSUL_LABEL[rec.insul]:''}</td><td class="c">${doneMap[d.id]?'✔':'☐'}</td><td class="m">${esc(memoMap[d.id]||'')}</td></tr>`;
+      return `<tr${A&&d===A?' style="background:#fee2e2"':''}><td class="c">${i+1}</td>${A?`<td class="c">${d===A?'기준':Math.round(_distM(A,d))+'m'}</td>`:''}<td class="b">${esc(_shortNo(d.name))}</td><td>${esc((d.address||'').replace('서울특별시 금천구 ',''))}</td><td>${esc((d.extra?.['지번주소']||'').replace('서울특별시 금천구 ','').replace('서울특별시 ',''))}</td><td class="n">${d.lat?(+d.lat).toFixed(6):''}</td><td class="n">${d.lng?(+d.lng).toFixed(6):''}</td><td class="c">${typeTxt(d)}</td><td class="c">${esc(res)}</td><td class="c">${rec?.paint?PAINT_LABEL[rec.paint]:''}</td><td class="c">${rec?.insul?INSUL_LABEL[rec.insul]:''}</td><td class="c">${doneMap[d.id]?'✔':'☐'}</td><td class="m">${esc(memoMap[d.id]||'')}</td></tr>`;
     }).join('');
     return `<section${gi?' class="pb"':''}><h2>${esc(g)} <small>${rows.length}개 · 완료 ${done}개</small></h2>
-      <table><thead><tr><th style="width:28px">No</th>${A?'<th style="width:46px">거리</th>':''}<th style="width:92px">시설번호</th><th>주소</th><th style="width:38px">식구분</th><th style="width:78px">점검결과</th><th style="width:44px">도색</th><th style="width:44px">보온</th><th style="width:34px">완료</th><th style="width:22%">메모 / 비고</th></tr></thead><tbody>${trs}</tbody></table></section>`;
+      <table><thead><tr><th style="width:28px">No</th>${A?'<th style="width:46px">거리</th>':''}<th style="width:56px">시설번호</th><th>도로명주소</th><th>지번주소</th><th style="width:64px">위도</th><th style="width:70px">경도</th><th style="width:34px">식구분</th><th style="width:56px">점검결과</th><th style="width:38px">도색</th><th style="width:38px">보온</th><th style="width:34px">완료</th><th style="width:13%">메모 / 비고</th></tr></thead><tbody>${trs}</tbody></table></section>`;
   }).join('');
   const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)} - ${esc(A?opt.label:_scopeLabel(scope))}</title>
 <style>
@@ -3490,7 +3524,7 @@ h2{font-size:13px;margin:10px 0 4px}h2 small{font-weight:400;color:#555;font-siz
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 th,td{border:1px solid #888;padding:4px 5px;vertical-align:middle;word-break:keep-all;overflow-wrap:anywhere}
 th{background:#e8eef7;font-size:10.5px}tr{page-break-inside:avoid}
-td.c{text-align:center}td.b{font-weight:700}td.m{font-size:10px;color:#333}
+td.c{text-align:center}td.b{font-weight:700}td.m{font-size:10px;color:#333}td.n{font-size:9.5px;text-align:center;font-variant-numeric:tabular-nums}
 thead{display:table-header-group}
 .pb{page-break-before:always}
 </style></head><body>
