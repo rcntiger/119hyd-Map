@@ -540,6 +540,17 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
   <button class="mob-toggle" id="mobToggle" onclick="toggleMobView()">🗺️ 지도 보기</button>
 </div>
 
+<!-- ════ 모달: 변경 이력 ════ -->
+<div class="modal-bg" id="histModal">
+  <div class="modal" style="max-width:520px">
+    <h3 id="histTitle">📜 변경 이력</h3>
+    <div id="histBody" style="font-size:12.5px;max-height:60vh;overflow-y:auto"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-ghost" onclick="hideModal('histModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ 모달: 인쇄 ════ -->
 <div class="modal-bg" id="printModal">
   <div class="modal" style="max-width:420px">
@@ -728,7 +739,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v1.7.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v1.8.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1705,7 +1716,7 @@ function addMarker(idx,d){
   // (예전엔 터치 기기에서만 만들었는데, 그러면 PC에서는 토글을 눌러도 아무 효과가 없어 보이는 문제가 있었음)
   const _labelColor=groupColor(d);
   const labelEl=document.createElement('div');
-  labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${_labelColor};background:rgba(255,255,255,0.95);border:1.5px solid ${_labelColor};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer`;
+  labelEl.style.cssText=`padding:3px 8px;font-size:11px;font-weight:700;color:${_labelColor};background:rgba(255,255,255,0.95);border:1.5px solid ${_labelColor};border-radius:12px;white-space:normal;max-width:120px;word-break:keep-all;text-align:center;line-height:1.4;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer;margin-top:16px`;
   labelEl.addEventListener('click',e=>{e.stopPropagation();openIw();});
   let _lbTouchMoved=false;
   labelEl.addEventListener('touchstart',()=>{_lbTouchMoved=false;},{passive:true});
@@ -1715,7 +1726,7 @@ function addMarker(idx,d){
   const labelOverlay=new kakao.maps.CustomOverlay({
     position:new kakao.maps.LatLng(d.lat,d.lng),
     content:labelEl,
-    xAnchor:0.5,yAnchor:-0.2,
+    xAnchor:0.5,yAnchor:0, // 라벨 위쪽 = 소화전 좌표, margin-top으로 아이콘 아래 3px 간격 (라벨 높이와 무관하게 일정)
     zIndex:9,
   });
   if(labelsOn)labelOverlay.setMap(kakaoMap);
@@ -1814,7 +1825,7 @@ function renderPopup(iwEl,idx,d,iw){
       </div>
     </div>
     <div class="iw-name">${esc(d.name)}</div>
-    ${d.address?`<div class="iw-addr-row"><span class="iw-addr">📍 ${esc((d.address||'').replace(/^서울특별시\s*/,''))}</span><button class="iw-rv-inline" onclick="openRvFromPopup(new kakao.maps.LatLng(${d.lat},${d.lng}))">🔭 로드뷰</button><button class="iw-rv-inline" onclick="printFromHydrant(${idx})" title="이 소화전을 중심으로 주변 소화전 인쇄">🖨 기준 인쇄</button></div>`:''}
+    ${d.address?`<div class="iw-addr-row"><span class="iw-addr">📍 ${esc((d.address||'').replace(/^서울특별시\s*/,''))}</span><button class="iw-rv-inline" onclick="openRvFromPopup(new kakao.maps.LatLng(${d.lat},${d.lng}))">🔭 로드뷰</button><button class="iw-rv-inline" onclick="printFromHydrant(${idx})" title="이 소화전을 중심으로 주변 소화전 인쇄">🖨 기준 인쇄</button><button class="iw-rv-inline" onclick="showHistory(${idx})" title="이 소화전의 위치·점검 변경 기록">📜 이력</button></div>`:''}
     <div class="iw-latlng-row">🧭 위도 ${d.lat?d.lat.toFixed(6):'-'}, 경도 ${d.lng?d.lng.toFixed(6):'-'}${d.loc_fixed_at?` <span class="iw-locfixed-badge">📍 ${(dt=>`${String(dt.getFullYear()).slice(-2)}.${dt.getMonth()+1}.${dt.getDate()}`)(new Date(d.loc_fixed_at))} 수정</span>`:''}</div>
     <button class="hy-fixloc-btn hy-fixloc-full" onclick="startFixLocation(${idx})">📍 위치 수정</button>
     ${extraStr?`<div class="iw-extra">${esc(extraStr)}</div>`:''}
@@ -2084,8 +2095,11 @@ async function hySaveNow(idx){
     updated_at:new Date().toISOString()
   };
   _saveInFlight[idx]=true;
+  const prevRec=hydrantMap[d.id]?{...hydrantMap[d.id]}:null;
   try{
     const saved=await SupabaseUtil.upsert('hydmap_records',record,'item_id');
+    const changes=_hyDiff(prevRec,record);
+    if(changes.length)logHistory(d,'점검 입력',{changes});
     hydrantMap[d.id]=Array.isArray(saved)?(saved[0]||record):(saved||record);
     // 저장 중 추가 변경이 없었을 때만 draft를 비운다 (있으면 최신 draft 유지 후 재저장)
     if(!_saveQueued[idx])delete hyDraft[idx];
@@ -2114,6 +2128,67 @@ function renderPhotoGrid(idx,photos){
   grid.innerHTML=thumbsHtml;
 }
 
+/* ══════════ 변경 이력 ══════════
+   위치 수정·점검 입력·완료·메모·사진 변경을 hydmap_history 표에 한 줄씩 쌓는다 (수정·삭제 불가, 계속 누적).
+   기록 실패는 원래 작업을 막지 않는다 (경고만). */
+let _histWarned=false;
+function logHistory(d,action,detail){
+  if(!d||!currentProject)return;
+  const row={inspection_id:currentProject.id,item_id:d.id,item_name:d.name,action,detail:detail||null,actor:getInspName()||null};
+  SupabaseUtil.insert('hydmap_history',row).catch(e=>{
+    console.warn('변경 이력 기록 실패',e);
+    if(!_histWarned){_histWarned=true;showToast('변경 이력이 기록되지 않았습니다 — Supabase에 hydmap_history 표가 있는지 확인하세요','err');}
+  });
+}
+const _HY_FIELD_LABEL={hydrant_type:'소화전종류',paint:'도색',insul:'보온',protect:'보호틀',roadmark:'노면표시',result:'사용가부',defect_detail:'고장내용'};
+function _hyFieldText(k,v){
+  if(v===null||v===undefined||v==='')return '-';
+  if(k==='hydrant_type')return ({ground:'지상식',underground:'지하식'})[v]||v;
+  if(k==='paint')return PAINT_LABEL[v]||v;
+  if(k==='insul')return INSUL_LABEL[v]||v;
+  if(k==='protect')return ({yes:'설치',no:'미설치'})[v]||v;
+  return String(v);
+}
+function _hyDiff(prev,next){
+  const ch=[];
+  Object.keys(_HY_FIELD_LABEL).forEach(k=>{
+    const a=prev?prev[k]:null,b=next[k];
+    if((a??'')!==(b??''))ch.push({f:_HY_FIELD_LABEL[k],from:_hyFieldText(k,a),to:_hyFieldText(k,b)});
+  });
+  return ch;
+}
+function _histText(h){
+  const x=h.detail||{};
+  const short=a=>(a||'').replace('서울특별시 금천구 ','');
+  switch(h.action){
+    case '위치 수정':return `${x.method?`(${esc(x.method)}) `:''}${x.from?`${(+x.from.lat).toFixed(6)}, ${(+x.from.lng).toFixed(6)}`:'-'} → ${(+x.to.lat).toFixed(6)}, ${(+x.to.lng).toFixed(6)}`
+      +((x.from?.address||x.to?.address)&&x.from?.address!==x.to?.address?`<br>주소: ${esc(short(x.from?.address)||'-')} → ${esc(short(x.to?.address)||'-')}`:'');
+    case '점검 입력':return (x.changes||[]).map(c=>`${esc(c.f)}: ${esc(c.from)} → <b>${esc(c.to)}</b>`).join('<br>')||'-';
+    case '메모':return `${esc((x.from||'').slice(0,60))||'(없음)'} → <b>${esc((x.to||'').slice(0,60))||'(없음)'}</b>`;
+    case '메모 삭제':return esc((x.from||'').slice(0,80));
+    case '완료일 변경':return `→ ${esc(x.to||'')}`;
+    case '사진 추가':case '사진 삭제':return x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">사진 보기</a>`:'';
+    default:return '';
+  }
+}
+function _histTime(t){const d=new Date(t);return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+async function showHistory(idx){
+  const d=items[idx];if(!d)return;
+  document.getElementById('histTitle').textContent=`📜 변경 이력 — ${d.name}`;
+  const body=document.getElementById('histBody');
+  body.innerHTML='<div style="color:var(--mt);padding:20px;text-align:center">불러오는 중...</div>';
+  showModal('histModal');
+  try{
+    const rows=await SupabaseUtil.select('hydmap_history',{eq:{item_id:d.id},order:{column:'created_at',ascending:false}});
+    if(!rows||!rows.length){body.innerHTML='<div style="color:var(--mt);padding:20px;text-align:center">기록된 변경 이력이 없습니다</div>';return;}
+    body.innerHTML=rows.map(h=>`<div style="padding:8px 4px;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span style="color:var(--mt);font-size:11.5px">${_histTime(h.created_at)}</span><b>${esc(h.action)}</b><span style="color:var(--mt);font-size:11.5px">${esc(h.actor||'(점검자 미입력)')}</span></div>
+      <div style="margin-top:3px;line-height:1.5">${_histText(h)}</div></div>`).join('');
+  }catch(e){
+    body.innerHTML=`<div style="color:var(--hi);padding:14px">이력을 불러오지 못했습니다.<br><span style="font-size:11.5px;color:var(--mt)">Supabase에 hydmap_history 표가 만들어져 있는지 확인하세요. (${esc(e?.message||'')})</span></div>`;
+  }
+}
+
 // ━━ 완료 토글 ━━
 async function toggleDone(idx){
   const d=items[idx];if(!d||!currentProject)return;
@@ -2123,12 +2198,14 @@ async function toggleDone(idx){
       // 취소
       await SupabaseUtil.remove('hydmap_done',{item_id:d.id});
       delete doneMap[d.id];
+      logHistory(d,'완료 취소');
       showToast('점검완료 취소','');
     }else{
       // 완료
       const now=new Date().toISOString();
       await SupabaseUtil.upsert('hydmap_done',{item_id:d.id,inspection_id:currentProject.id,done_at:now},'item_id');
       doneMap[d.id]={done_at:now};showToast('점검완료 ✓','ok');
+      logHistory(d,'점검 완료');
     }
   }catch(e){showToast('저장 실패','err');return;}
   // UI 갱신
@@ -2157,6 +2234,7 @@ async function updateDoneDate(idx,dateStr){
   const iso=new Date(dateStr).toISOString();
   await SupabaseUtil.update('hydmap_done',{done_at:iso},{item_id:d.id});
   doneMap[d.id].done_at=iso;
+  logHistory(d,'완료일 변경',{to:dateStr});
   showToast('날짜 수정됨','ok');
 }
 
@@ -2173,8 +2251,10 @@ async function saveMemoNow(idx){
   const d=items[idx];if(!d||!currentProject)return;
   const el=document.getElementById(`memo-${idx}`);if(!el)return;
   const text=el.value.trim();
+  const before=memoMap[d.id]||'';
   await SupabaseUtil.upsert('hydmap_memo',{item_id:d.id,inspection_id:currentProject.id,memo:text},'item_id');
   memoMap[d.id]=text;
+  if(before!==text)logHistory(d,'메모',{from:before,to:text});
   const st=document.getElementById(`memoSt-${idx}`);
   if(st){st.textContent='✅ 저장됨';setTimeout(()=>{if(st)st.textContent='';},2000);}
   showToast('메모 저장됨','ok');
@@ -2182,8 +2262,10 @@ async function saveMemoNow(idx){
 async function deleteMemoNow(idx){
   if(!confirm('메모를 삭제하시겠습니까?'))return;
   const d=items[idx];if(!d)return;
+  const before=memoMap[d.id]||'';
   await SupabaseUtil.remove('hydmap_memo',{item_id:d.id});
   memoMap[d.id]='';
+  if(before)logHistory(d,'메모 삭제',{from:before});
   const el=document.getElementById(`memo-${idx}`);if(el)el.value='';
   const len=document.getElementById(`memoLen-${idx}`);if(len)len.textContent='0/300자';
   const st=document.getElementById(`memoSt-${idx}`);if(st){st.textContent='🗑 삭제됨';setTimeout(()=>{if(st)st.textContent='';},2000);}
@@ -2245,6 +2327,7 @@ async function uploadPhotoFile(idx,file){
     const [photo]=await SupabaseUtil.insert('hydmap_photos',{item_id:d.id,inspection_id:currentProject.id,url,caption:''});
     if(!photoMap[d.id])photoMap[d.id]=[];
     photoMap[d.id].push(photo);
+    logHistory(d,'사진 추가',{url});
     renderPhotoGrid(idx,photoMap[d.id]);
     showToast(`사진 저장됨 (${kb}KB)`,'ok');
   }catch(e){showToast('업로드 실패: '+e.message,'err');console.error('uploadPhoto error:',e);}
@@ -2259,6 +2342,7 @@ async function deletePhoto(idx,photoId,url){
   if(!confirm('사진을 삭제하시겠습니까? (기록만 삭제되며 Cloudinary 원본은 남습니다)'))return;
   const d=items[idx];if(!d)return;
   await SupabaseUtil.remove('hydmap_photos',{id:photoId});
+  logHistory(d,'사진 삭제',{url});
   if(photoMap[d.id])photoMap[d.id]=photoMap[d.id].filter(p=>String(p.id)!==String(photoId));
   renderPhotoGrid(idx,photoMap[d.id]||[]);
   showToast('사진 삭제됨','ok');
@@ -2428,11 +2512,14 @@ async function applyFixLocation(idx,latLng){
   try{
     showToast('주소 확인 중...','');
     const addr=await reverseGeocode(lat,lng);
+    const from={lat:d.lat,lng:d.lng,address:d.address||''};
+    const method=_fixMeta?.method||'지도 클릭';_fixMeta=null;
     const payload={lat,lng,loc_fixed_at:new Date().toISOString()};
     if(addr)payload.address=addr;
     await SupabaseUtil.update('hydmap_items',payload,{id:d.id});
     d.lat=lat;d.lng=lng;d.loc_fixed_at=payload.loc_fixed_at;
     if(addr)d.address=addr;
+    logHistory(d,'위치 수정',{method,from:from.lat?from:null,to:{lat,lng,address:d.address||''}});
     // 기존 오버레이/클러스터 마커 위치 이동 (재생성 없이 좌표만 갱신)
     const o=overlays[idx];
     if(o){
@@ -2849,16 +2936,29 @@ async function exportExcel(){
       '완료체크일자':doneMap[d.id]?.done_at?new Date(doneMap[d.id].done_at).toLocaleDateString('ko-KR'):'',
       '메모':memoMap[d.id]||'',
       '사진수':(photoMap[d.id]?.length)||0,
+      // 현재 좌표(위치 수정 시 바뀐 값) — 다른 시스템/엑셀로 옮길 때 쓰도록 출력
+      '위도':d.lat?+d.lat.toFixed(7):'',
+      '경도':d.lng?+d.lng.toFixed(7):'',
+      '위치수정일':d.loc_fixed_at?new Date(d.loc_fixed_at).toLocaleDateString('ko-KR'):'',
     };
   });
   const doneRows=allRows.filter((_,i)=>!!doneMap[items[i].id]);
   const undoneRows=allRows.filter((_,i)=>!doneMap[items[i].id]);
   const modifiedRows=allRows.filter((_,i)=>!!hydrantMap[items[i].id]);
+  const locFixedRows=allRows.filter((_,i)=>!!items[i].loc_fixed_at);
+  let histRows=[];
+  try{
+    const hs=await SupabaseUtil.select('hydmap_history',{eq:{inspection_id:currentProject.id},order:{column:'created_at',ascending:true}});
+    const strip=t=>String(t||'').replace(/<br>/g,' / ').replace(/<[^>]+>/g,'').replace(/&gt;/g,'>').replace(/&lt;/g,'<').replace(/&amp;/g,'&').replace(/&quot;/g,'"');
+    histRows=(hs||[]).map(h=>({'일시':_histTime(h.created_at),'점검자':h.actor||'','시설번호':h.item_name||'','항목':h.action,'내용':strip(_histText(h))}));
+  }catch(e){console.warn('변경이력 조회 실패',e);}
   await ExcelUtil.download([
     {name:'전체현황',rows:allRows},
     {name:'수정됨(점검입력완료)',rows:modifiedRows.length?modifiedRows:[{'안내':'점검 입력된 항목 없음'}]},
     {name:'점검완료',rows:doneRows.length?doneRows:[{'안내':'완료 없음'}]},
     {name:'미완료',rows:undoneRows.length?undoneRows:[{'안내':'미완료 없음'}]},
+    {name:'위치수정됨',rows:locFixedRows.length?locFixedRows:[{'안내':'위치를 수정한 소화전 없음'}]},
+    {name:'변경이력',rows:histRows.length?histRows:[{'안내':'기록된 변경 이력 없음'}]},
   ],`${currentProject?.name||'점검결과'}_${stamp}.xlsx`);
   showToast('📊 엑셀 저장 완료','ok');
 }
@@ -2943,7 +3043,8 @@ function clearFixPin(){
    스마트폰 GPS는 첫 값이 기지국/와이파이 기반의 대략적인 값(오차 수십 m)인 경우가 많고,
    위성을 잡을수록 점점 정확해진다. 그래서 한 번만 읽지 않고 최대 30초 동안 계속 측정하면서
    오차(±m)를 화면에 보여주고, 가장 정확한 측정값들의 가중 평균을 위치로 쓴다. */
-let _gps=null; // {idx,watch,samples,timer,started,circle,dot}
+let _gps=null;
+let _fixMeta=null; // 다음 위치 저장의 방법 표시용 (GPS면 오차 포함) // {idx,watch,samples,timer,started,circle,dot}
 function startPreciseGps(idx){
   stopPreciseGps();
   const panel=document.getElementById('gpsPanel');
@@ -3015,6 +3116,7 @@ function finishPreciseGps(auto){
   if(!b){showToast('위치를 측정하지 못했습니다','err');return;}
   if(b.acc>30&&!confirm(`GPS 오차가 ±${Math.round(b.acc)}m로 큽니다.\n그래도 이 위치로 저장할까요?\n(취소 후 지도를 직접 눌러 지정할 수 있습니다)`))return;
   showToast(`GPS 측정 완료 (±${Math.round(b.acc)}m, ${b.n}회 평균)`,'ok');
+  _fixMeta={method:`GPS ±${Math.round(b.acc)}m`};
   confirmAndApplyFixLocation(idx,new kakao.maps.LatLng(b.lat,b.lng));
 }
 function stopPreciseGps(){
@@ -3119,10 +3221,12 @@ async function saveBatchFix(){
     showToast(`저장 중… ${n+1}/${ids.length}`,'');
     try{
       const payload={lat,lng,loc_fixed_at:now};
+      const from={lat:rec.d.lat,lng:rec.d.lng,address:rec.d.address||''};
       if(withAddr){const a=await reverseGeocode(lat,lng);if(a)payload.address=a;else addrFail++;}
       await SupabaseUtil.update('hydmap_items',payload,{id:rec.d.id});
       const d=rec.d;
       d.lat=lat;d.lng=lng;d.loc_fixed_at=now;if(payload.address)d.address=payload.address;
+      logHistory(d,'위치 수정',{method:'일괄(PC)',from,to:{lat,lng,address:d.address||''}});
       const o=overlays[rec.idx];
       if(o){o.overlay?.setPosition(p);o.labelOverlay?.setPosition(p);o.iw?.setPosition(p);o.clMarker?.setPosition(p);}
       // 저장된 것은 새 위치를 기준점으로
@@ -3149,6 +3253,7 @@ function confirmAndApplyFixLocation(idx,latLng){
   }
   // 취소하면 핀만 지우고 위치 수정 모드는 계속 유지 (다시 클릭해서 재시도 가능)
   else{
+    _fixMeta=null;
     clearFixPin();
   }
 }
