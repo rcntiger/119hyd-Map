@@ -191,7 +191,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
   .insp-row #inspNameGlobal{font-size:12px!important;padding:8px 6px!important}
   .insp-row #inspDateGlobal{font-size:11.5px!important;padding:8px 3px!important}
   .iw-wrap{max-height:64vh!important;max-width:82vw!important;overflow-y:scroll!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important}
-  .iw-memo textarea{height:90px!important}
+  .iw-memo textarea{height:64px!important}
   .iw-photos{grid-template-columns:repeat(3,1fr)!important}
   .dist-info{bottom:64px!important;font-size:11px!important;padding:6px 12px!important}
   .toast{bottom:64px!important;right:50%!important;transform:translate(50%,60px)!important;text-align:center}
@@ -788,7 +788,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.6'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.2.9'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1966,6 +1966,8 @@ function addMarker(idx,d){
 
   const iwEl=document.createElement('div');
   iwEl.className='iw-wrap';
+  // 카드 안 터치·휠 동작이 지도로 전달되지 않게 막아, 휴대폰에서 카드를 위아래로 스크롤할 수 있게 함
+  ['touchstart','touchmove','wheel','mousedown','pointerdown'].forEach(ev=>iwEl.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
   ['click','mousedown','mousemove','dblclick','wheel','touchstart','touchmove','touchend'].forEach(ev=>{
     iwEl.addEventListener(ev,e=>e.stopPropagation(),{passive:false});
   });
@@ -2148,26 +2150,24 @@ function renderPopup(iwEl,idx,d,iw){
 
     <div class="iw-memo">
       <div class="iw-memo-header">
-        <span class="iw-memo-title">📝 점검 메모</span>
-        <div style="display:flex;align-items:center;gap:5px">
+        <span class="iw-memo-title">📝 메모</span>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end">
           <span class="iw-memo-status" id="memoSt-${idx}"></span>
-          <button class="iw-rv-inline iw-photo-add-top" onclick="openPhotoSheet(${idx})">📷 사진추가</button>
+          <button class="iw-memo-save" onclick="saveMemoNow(${idx})">💾 저장</button>
+          <button class="iw-memo-del" onclick="deleteMemoNow(${idx})">🗑 삭제</button>
+          <button class="iw-rv-inline iw-photo-add-top" onclick="openPhotoSheet(${idx})" title="사진 추가">📷 사진+</button>
         </div>
       </div>
       <textarea id="memo-${idx}" placeholder="점검 결과, 특이사항 입력..." oninput="onMemoInput(${idx},this)">${esc(memo)}</textarea>
       <div class="iw-memo-actions">
         <span class="iw-memo-len" id="memoLen-${idx}">${memo.length}/300자</span>
-        <div class="iw-memo-btns">
-          <button class="iw-memo-save" onclick="saveMemoNow(${idx})">💾 저장</button>
-          <button class="iw-memo-del" onclick="deleteMemoNow(${idx})">🗑 삭제</button>
-        </div>
       </div>
     </div>
 
     <div class="iw-divider"></div>
 
     <div class="iw-photo-add-bottom" style="display:flex;align-items:center;justify-content:flex-start;margin-bottom:5px">
-      <button class="iw-rv-inline" onclick="openPhotoSheet(${idx})">📷 사진추가</button>
+      <button class="iw-rv-inline" onclick="openPhotoSheet(${idx})" title="사진 추가">📷 사진+</button>
     </div>
     <div class="iw-photos" id="photoGrid-${idx}"></div>
 
