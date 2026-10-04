@@ -452,6 +452,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
             <button class="fbtn" onclick="pickSelectAllVisible()" style="flex:1;font-size:11.5px;padding:5px 9px">☑ 보이는 전체 선택</button>
             <button class="fbtn" onclick="pickClearAll()" style="flex:1;font-size:11.5px;padding:5px 9px">☐ 전체 해제</button>
           </div>
+          <button class="fbtn admin-only" onclick="showRegroupModal()" style="font-size:11.5px;padding:6px 9px;font-weight:700;border-color:var(--lo);color:var(--lo)">🔀 선택한 소화전 조 변경 (관리자)</button>
         </div>
         <!-- 선택 표시가 적용된 상태: 해제 버튼 -->
         <div id="pickedActivePill" style="display:none;align-items:center;gap:6px;margin-top:8px;padding:7px 9px;border-radius:6px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3)">
@@ -547,6 +548,23 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
     </div>
   </div>
   <button class="mob-toggle" id="mobToggle" onclick="toggleMobView()">🗺️ 지도 보기</button>
+</div>
+
+<!-- ════ 모달: 조 변경 ════ -->
+<div class="modal-bg" id="regroupModal">
+  <div class="modal" style="max-width:380px">
+    <h3>🔀 조 변경</h3>
+    <div id="regroupInfo" style="font-size:12.5px;color:var(--mt);margin-bottom:12px"></div>
+    <div class="form-row"><label>옮길 조</label>
+      <select id="regroupSel" onchange="document.getElementById('regroupNew').style.display=this.value==='__new'?'block':'none'" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700"></select>
+      <input type="text" id="regroupNew" placeholder="예: A구역 4조" style="display:none;margin-top:6px">
+    </div>
+    <div style="font-size:11.5px;color:var(--mt);line-height:1.5">점검 기록은 그대로 유지됩니다. 바꾼 뒤 홈에서 "조별 세분계획 갱신"을 누르면 카드가 새 배정으로 맞춰집니다.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-ghost" onclick="hideModal('regroupModal')">취소</button>
+      <button class="btn btn-primary" id="regroupBtn" onclick="applyRegroup()">변경</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════ 모달: 관리자 로그인 ════ -->
@@ -762,7 +780,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.0.1'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.1.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -957,17 +975,19 @@ async function generateSubPlans(parentId){
   if(!requireAdmin())return;
   const parent=projectList.find(x=>String(x.id)===String(parentId));
   if(!parent){showToast('계획을 찾을 수 없습니다','err');return;}
-  showToast('팀/조 정보 확인 중...','');
+  showToast('구역/조 정보 확인 중...','');
   try{
     const rows=await SupabaseUtil.select('hydmap_items',{eq:{inspection_id:parentId},columns:'group_name'});
     const groups=[...new Set((rows||[]).map(r=>String(r.group_name||'').trim()).filter(Boolean))]
       .sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
-    if(!groups.length){showToast('팀/조 정보가 없습니다. 엑셀에 팀/조 컬럼을 매핑해서 업로드해주세요.','err');return;}
+    if(!groups.length){showToast('구역/조 정보가 없습니다. 엑셀에 구역·조 컬럼을 매핑해서 업로드해주세요.','err');return;}
     // 팀 목록 추출: "1팀 2조" 형태에서 첫 토큰("1팀")을 팀으로 본다. 공백 없는 값("2조"만)은 팀 없음.
     const teams=[...new Set(groups.filter(g=>g.includes(' ')).map(g=>g.split(' ')[0]))]
       .sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
     const existing=subPlanList.filter(sp=>String(sp.parent_id)===String(parentId));
-    const summary=teams.length?`팀 ${teams.length}개 + 조 ${groups.length}개`:`조 ${groups.length}개`;
+    const summary=teams.length?`구역 ${teams.length}개 + 조 ${groups.length}개`:`조 ${groups.length}개`;
+    // 다시 만들어도 구역별 담당 팀은 유지
+    const prevAssign={};existing.forEach(sp=>{if(sp.assigned_team)prevAssign[sp.filter_group]=sp.assigned_team;});
     const msg=existing.length
       ?`기존 세분계획 ${existing.length}개를 지우고 현재 데이터 기준(${summary})으로 다시 만듭니다.\n(점검 데이터는 부모 계획에 있으므로 사라지지 않습니다)\n계속하시겠습니까?`
       :`${summary}(${groups.slice(0,4).join(', ')}${groups.length>4?' 외':''}) 기준으로 세분계획을 생성합니다.\n계속하시겠습니까?`;
@@ -975,12 +995,9 @@ async function generateSubPlans(parentId){
     if(existing.length)await SupabaseUtil.remove('hydmap_projects',{parent_id:parentId});
     // 팀 카드 먼저 (filter_group='1팀' — 열면 접두어 매칭으로 팀 전체 표시)
     for(const t of teams){
-      await SupabaseUtil.insert('hydmap_projects',{
-        name:`${t} 전체`,
-        description:`${parent.name} — ${t} 소속 전 조`,
-        parent_id:parentId,
-        filter_group:t,
-      });
+      const row={name:`${t} 전체`,description:`${parent.name} — ${t} 전 조`,parent_id:parentId,filter_group:t};
+      if(prevAssign[t])row.assigned_team=prevAssign[t];
+      await SupabaseUtil.insert('hydmap_projects',row);
     }
     // 조 카드 (filter_group='1팀 2조' — 정확 매칭으로 해당 조만 표시)
     for(const g of groups){
@@ -997,6 +1014,37 @@ async function generateSubPlans(parentId){
     showToast('세분계획 생성 실패: '+e.message,'err');
     console.error('generateSubPlans 오류:',e);
   }
+}
+/* ══════════ 구역 담당 팀 (6개월 순환) ══════════
+   소화전은 구역(A/B/C)에 고정되고, 구역을 맡는 팀만 바뀐다. 담당 팀은 구역 카드(hydmap_projects.assigned_team)에 저장. */
+async function setAreaTeam(spId){
+  if(!requireAdmin())return;
+  const sp=subPlanList.find(x=>String(x.id)===String(spId));if(!sp)return;
+  const v=prompt(`${sp.filter_group}의 담당 팀을 입력하세요 (예: 1팀). 비우면 미지정`,sp.assigned_team||'');
+  if(v===null)return;
+  let t=v.trim();if(/^\d+$/.test(t))t+='팀';
+  try{
+    await SupabaseUtil.update('hydmap_projects',{assigned_team:t||null},{id:sp.id});
+    showToast(`${sp.filter_group} 담당: ${t||'미지정'}`,'ok');
+    await loadProjects();
+  }catch(e){showToast('저장 실패: '+e.message+' (구역 전환 SQL을 실행했는지 확인)','err');}
+}
+// 순환 규칙: 지금 n팀이 맡은 구역 → 다음엔 (n-1)팀 (1팀 → 3팀으로 돌아감)
+//   예) A:1팀 B:2팀 C:3팀  →  A:3팀 B:1팀 C:2팀  →  A:2팀 B:3팀 C:1팀  →  처음으로
+async function rotateAreaTeams(parentId){
+  if(!requireAdmin())return;
+  const areas=subPlanList.filter(sp=>String(sp.parent_id)===String(parentId)&&!String(sp.filter_group||'').includes(' '));
+  const teams=[...new Set(areas.map(a=>a.assigned_team).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  if(!areas.length||areas.some(a=>!a.assigned_team)){showToast('모든 구역에 담당 팀을 먼저 지정하세요 (구역 카드의 "변경")','err');return;}
+  if(teams.length!==areas.length){showToast('구역마다 서로 다른 팀이 지정되어야 순환할 수 있습니다','err');return;}
+  const next=a=>teams[(teams.indexOf(a.assigned_team)-1+teams.length)%teams.length];
+  const lines=areas.map(a=>`${a.filter_group}: ${a.assigned_team} → ${next(a)}`).join('\n');
+  if(!confirm(`담당 팀을 순환합니다.\n\n${lines}\n\n소화전·점검 데이터는 그대로입니다. 계속할까요?`))return;
+  try{
+    for(const a of areas)await SupabaseUtil.update('hydmap_projects',{assigned_team:next(a)},{id:a.id});
+    showToast('담당 팀 순환 완료','ok');
+    await loadProjects();
+  }catch(e){showToast('순환 실패: '+e.message,'err');}
 }
 function cardMetaHtml(p){
   const total=p._total==='-'?'-':(p._total||0);
@@ -1105,7 +1153,7 @@ function renderProjects(list){
       <div class="project-card-desc">${esc(p.description||'')}</div>
       <div class="project-card-meta">${cardMetaHtml(p)}</div>
       ${children.length?`<button class="tree-expand-btn" id="tt-${p.id}" data-count="${children.length}" data-kind="plan" onclick="event.stopPropagation();toggleTree('${p.id}',false)">${pOpen?'▲ 팀/조별 담당 접기':'▼ 팀/조별 담당 펼쳐 보기'}</button>`:''}
-      <button class="subplan-btn" onclick="event.stopPropagation();generateSubPlans('${p.id}')" title="엑셀의 팀/조 값 기준으로 조별 세분계획을 생성하거나 갱신합니다">🗂 조별 세분계획 ${children.length?'갱신':'생성'}</button>`;
+      ${children.some(isTeamCard)?`<button class="subplan-btn" onclick="event.stopPropagation();rotateAreaTeams('${p.id}')" title="구역별 담당 팀을 순환 (1팀 구역→3팀, 2팀 구역→1팀, 3팀 구역→2팀)">🔄 담당 팀 순환</button> `:''}<button class="subplan-btn" onclick="event.stopPropagation();generateSubPlans('${p.id}')" title="엑셀의 팀/조 값 기준으로 조별 세분계획을 생성하거나 갱신합니다">🗂 조별 세분계획 ${children.length?'갱신':'생성'}</button>`;
     card.onclick=()=>openProject(p);
     frag.appendChild(card);
     if(!children.length)return;
@@ -1140,7 +1188,7 @@ function _subPlanCard(sp,isTeam,childCount){
   const open=_treeIsOpen(sp.id,true);
   sc.innerHTML=`
     <button class="project-card-del" onclick="event.stopPropagation();deleteProject('${sp.id}','${esc(sp.name)}')" title="삭제">✕</button>
-    <div class="project-card-name">${isTeam?'🏢':'👥'} ${esc(sp.name)}</div>
+    <div class="project-card-name">${isTeam?'🏢':'👥'} ${esc(sp.name)}${isTeam?` <span style="font-size:12px;font-weight:700;color:${sp.assigned_team?'var(--lo)':'var(--mt)'}">· 담당 ${esc(sp.assigned_team||'미지정')}</span>`:''}${isTeam?`<button class="subplan-btn" style="margin:0 0 0 6px;padding:1px 7px" onclick="event.stopPropagation();setAreaTeam('${sp.id}')" title="이 구역의 담당 팀 지정">변경</button>`:''}</div>
     <div class="project-card-meta">${cardMetaHtml(sp)}</div>
     ${isTeam&&childCount?`<button class="tree-expand-btn" id="tt-${sp.id}" data-count="${childCount}" data-kind="team" onclick="event.stopPropagation();toggleTree('${sp.id}',true)">${open?'▲ 조 목록 접기':`▼ ${childCount}개 조 펼치기`}</button>`:''}`;
   sc.onclick=()=>openProject(sp);
@@ -1566,6 +1614,45 @@ function pickSelectAllVisible(){
   renderList();
   if(n)showToast(`${n}개 추가로 선택됨 (총 ${pickedIds.size}개)`,'ok');
   else showToast('추가할 항목이 없습니다 (이미 다 선택됨)','err');
+}
+function showRegroupModal(){
+  if(!requireAdmin())return;
+  if(!pickedIds.size){showToast('먼저 옮길 소화전을 선택하세요','err');return;}
+  const picked=items.filter(d=>pickedIds.has(d.id));
+  const from=[...new Set(picked.map(d=>d.group_name||'(미지정)'))];
+  document.getElementById('regroupInfo').textContent=`선택 ${picked.length}개 (현재: ${from.slice(0,4).join(', ')}${from.length>4?' 외':''})`;
+  document.getElementById('regroupSel').innerHTML=groups.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('')+'<option value="__new">+ 새 조 이름 입력</option>';
+  document.getElementById('regroupNew').value='';
+  document.getElementById('regroupNew').style.display=groups.length?'none':'block';
+  if(!groups.length)document.getElementById('regroupSel').value='__new';
+  showModal('regroupModal');
+}
+async function applyRegroup(){
+  if(!requireAdmin())return;
+  const sel=document.getElementById('regroupSel').value;
+  let to=sel==='__new'?document.getElementById('regroupNew').value.trim().replace(/\s+/g,' '):sel;
+  if(!to){showToast('옮길 조 이름을 입력하세요','err');return;}
+  const picked=items.filter(d=>pickedIds.has(d.id)&&(d.group_name||'')!==to);
+  if(!picked.length){showToast('이미 모두 그 조입니다','');hideModal('regroupModal');return;}
+  const btn=document.getElementById('regroupBtn');btn.disabled=true;
+  let ok=0,fail=0;
+  for(let n=0;n<picked.length;n++){
+    const d=picked[n];
+    showToast(`조 변경 중… ${n+1}/${picked.length}`,'');
+    try{
+      const from=d.group_name||'';
+      await SupabaseUtil.update('hydmap_items',{group_name:to},{id:d.id});
+      d.group_name=to;ok++;
+      logHistory(d,'조 변경',{from,to});
+    }catch(e){fail++;console.error('조 변경 실패',d.name,e);}
+  }
+  btn.disabled=false;
+  hideModal('regroupModal');
+  // 그룹 목록·색·마커·목록 다시 그리기
+  groups=[...new Set(items.map(d=>String(d.group_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
+  resetGroupColors();groups.forEach(g=>groupColor({group_name:g}));
+  buildGroupFilter();renderAllMarkers();renderList();applyFilter();updateStats();
+  showToast(fail?`${ok}개 변경 · 실패 ${fail}개 (구역 전환 SQL 실행 여부 확인)`:`${ok}개를 "${to}"(으)로 옮겼습니다. 홈에서 세분계획 갱신을 누르세요`,fail?'err':'ok');
 }
 function pickClearAll(){
   pickedIds.clear();
@@ -2280,6 +2367,7 @@ function _histText(h){
     case '메모':return `${esc((x.from||'').slice(0,60))||'(없음)'} → <b>${esc((x.to||'').slice(0,60))||'(없음)'}</b>`;
     case '메모 삭제':return esc((x.from||'').slice(0,80));
     case '완료일 변경':return `→ ${esc(x.to||'')}`;
+    case '조 변경':return `${esc(x.from||'(미지정)')} → <b>${esc(x.to||'')}</b>`;
     case '사진 추가':case '사진 삭제':return x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">사진 보기</a>`:'';
     default:return '';
   }
@@ -2731,8 +2819,8 @@ function getExcelReader(){
       {id:'jibun',label:'지번주소',keywords:['지번']},
       {id:'lat',label:'위도',keywords:['위도','lat','latitude','y좌표']},
       {id:'lng',label:'경도',keywords:['경도','lng','lon','longitude','x좌표']},
-      {id:'team',label:'팀',keywords:['팀','team','부서']},
-      {id:'group',label:'조',keywords:['조','반','구역','그룹','group']},
+      {id:'team',label:'구역',keywords:['구역','팀','team','area']},
+      {id:'group',label:'조',keywords:['조','반','그룹','group']},
       {id:'type',label:'소화전 종류(식구분)',keywords:['식구분','종류','구분','소화전종류','형식']},
       {id:'extra',label:'추가정보',keywords:['비고','추가','기타','결과','검수','extra']},
     ],
@@ -2859,6 +2947,7 @@ async function _onExcelConfirm(headers,rows,mapping){
     let teamVal=iTeam!=null?String(r[iTeam]||'').trim():'';
     let joVal=iGroup!=null?String(r[iGroup]||'').trim():'';
     if(teamVal&&/^\d+$/.test(teamVal))teamVal+='팀';
+    if(teamVal&&/^[A-Za-z]$/.test(teamVal))teamVal=teamVal.toUpperCase()+'구역'; // A → A구역
     if(joVal&&/^\d+$/.test(joVal))joVal+='조';
     const groupName=[teamVal,joVal].filter(Boolean).join(' ')||null;
     return{
