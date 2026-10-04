@@ -780,7 +780,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.2'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.2.3'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -1038,8 +1038,11 @@ async function rotateAreaTeams(parentId){
   if(!areas.length||areas.some(a=>!a.assigned_team)){showToast('모든 구역에 담당 팀을 먼저 지정하세요 (구역 카드의 "변경")','err');return;}
   if(teams.length!==areas.length){showToast('구역마다 서로 다른 팀이 지정되어야 순환할 수 있습니다','err');return;}
   const next=a=>teams[(teams.indexOf(a.assigned_team)-1+teams.length)%teams.length];
-  const lines=areas.map(a=>`${a.filter_group}: ${a.assigned_team} → ${next(a)}`).join('\n');
-  if(!confirm(`담당 팀을 순환합니다.\n\n${lines}\n\n소화전·점검 데이터는 그대로입니다. 계속할까요?`))return;
+  // 확인창: 팀 입장(어느 구역으로 옮겨 가는지)과 구역 입장(담당 팀이 어떻게 바뀌는지)을 함께 보여 준다
+  const byTeam=[...areas].sort((x,y)=>x.assigned_team.localeCompare(y.assigned_team,'ko',{numeric:true}))
+    .map(a=>{const to=areas.find(b=>next(b)===a.assigned_team);return `${a.assigned_team}: ${a.filter_group} → ${to?to.filter_group:'?'}`;}).join('\n');
+  const byArea=areas.map(a=>`${a.filter_group}: ${a.assigned_team} → ${next(a)}`).join('\n');
+  if(!confirm(`담당 팀을 순환합니다.\n\n[팀별 이동]\n${byTeam}\n\n[구역별 담당]\n${byArea}\n\n소화전·점검 데이터는 그대로입니다. 계속할까요?`))return;
   try{
     for(const a of areas)await SupabaseUtil.update('hydmap_projects',{assigned_team:next(a)},{id:a.id});
     showToast('담당 팀 순환 완료','ok');
