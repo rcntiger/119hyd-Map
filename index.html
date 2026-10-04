@@ -265,11 +265,19 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 .iw-team-badge.done{background:rgba(34,197,94,.15)!important;color:#22c55e!important}
 .iw-close{cursor:pointer;color:#94a3b8;font-size:18px;line-height:1;padding:2px 4px}
 .iw-name{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px}
+/* 이름 줄: 왼쪽 이름, 오른쪽 끝에 이력·기준 인쇄·로드뷰 버튼 → 주소 줄은 전체 폭 사용 */
+.iw-name-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.iw-name-row .iw-name{margin:0;flex-shrink:0}
+.iw-name-btns{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.iw-addr-full{white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all;line-height:1.4}
 .iw-addr-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
 .iw-addr{font-size:12px;color:#64748b;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .iw-rv-inline{flex-shrink:0;padding:2px 7px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#475569;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
 .hy-fixloc-btn{flex:1;padding:6px 4px;border:1px dashed #93c5fd;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .hy-fixloc-full{width:100%;display:block;margin-bottom:8px;font-size:11px;white-space:normal}
+.hy-fixloc-row{display:flex;gap:6px;margin-bottom:8px}
+.hy-fixloc-row .hy-fixloc-btn{font-size:11px;padding:7px 4px}
+.hy-rv-btn{flex:0 0 34%;border-style:solid;border-color:#e2e8f0;background:#f8fafc;color:#475569}
 .hy-fixloc-mini{min-width:200px;text-align:center}
 .hy-fixloc-mini-title{font-size:13px;font-weight:800;color:#0f172a;margin-bottom:4px}
 .hy-fixloc-mini-hint{font-size:11px;color:#64748b;margin-bottom:10px}
@@ -780,7 +788,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/excel.js"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.2.3'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.2.6'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
 const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
@@ -2026,7 +2034,10 @@ function renderPopup(iwEl,idx,d,iw){
   const color=groupColor(d);
   const memo=memoMap[d.id]||'';
   const photos=photoMap[d.id]||[];
-  const extraStr=d.extra?Object.entries(d.extra).filter(([k])=>k!=='_type').map(([k,v])=>`${k}: ${v}`).join(' · '):'';
+  // 설치년도는 '소화전 종류' 줄 오른쪽에 따로 표시하고, 나머지 추가정보만 위치 아래에 표시
+  const _isYearKey=k=>/^설치\s*(연|년)도$/.test(String(k).trim());
+  const installYear=d.extra?(Object.entries(d.extra).find(([k])=>_isYearKey(k))||[])[1]:'';
+  const extraStr=d.extra?Object.entries(d.extra).filter(([k])=>k!=='_type'&&!_isYearKey(k)).map(([k,v])=>`${k}: ${v}`).join(' · '):'';
   const draft=hyGetDraft(idx,d);
   const st=hyStatusInfo(hydrantMap[d.id]);
   const savedRec=hydrantMap[d.id];
@@ -2053,10 +2064,19 @@ function renderPopup(iwEl,idx,d,iw){
         <span class="iw-close" onclick="closeIw()">✕</span>
       </div>
     </div>
-    <div class="iw-name">${esc(d.name)}</div>
-    ${d.address?`<div class="iw-addr-row"><span class="iw-addr">📍 ${esc((d.address||'').replace(/^서울특별시\s*/,''))}</span><button class="iw-rv-inline" onclick="openRvFromPopup(new kakao.maps.LatLng(${d.lat},${d.lng}))">🔭 로드뷰</button><button class="iw-rv-inline" onclick="printFromHydrant(${idx})" title="이 소화전을 중심으로 주변 소화전 인쇄">🖨 기준 인쇄</button><button class="iw-rv-inline" onclick="showHistory(${idx})" title="이 소화전의 위치·점검 변경 기록">📜 이력</button></div>`:''}
+    <div class="iw-name-row">
+      <div class="iw-name">${esc(d.name)}</div>
+      <div class="iw-name-btns">
+        <button class="iw-rv-inline" onclick="showHistory(${idx})" title="이 소화전의 위치·점검 변경 기록">📜 이력</button>
+        <button class="iw-rv-inline" onclick="printFromHydrant(${idx})" title="이 소화전을 중심으로 주변 소화전 인쇄">🖨 기준 인쇄</button>
+      </div>
+    </div>
+    ${d.address?`<div class="iw-addr-row"><span class="iw-addr iw-addr-full">📍 ${esc((d.address||'').replace(/^서울특별시\s*/,''))}</span></div>`:''}
     <div class="iw-latlng-row">🧭 위도 ${d.lat?d.lat.toFixed(6):'-'}, 경도 ${d.lng?d.lng.toFixed(6):'-'}${d.loc_fixed_at?` <span class="iw-locfixed-badge">📍 ${(dt=>`${String(dt.getFullYear()).slice(-2)}.${dt.getMonth()+1}.${dt.getDate()}`)(new Date(d.loc_fixed_at))} 수정</span>`:''}</div>
-    <button class="hy-fixloc-btn hy-fixloc-full" onclick="startFixLocation(${idx})">📍 위치 수정</button>
+    <div class="hy-fixloc-row">
+      <button class="hy-fixloc-btn" onclick="startFixLocation(${idx})">📍 위치 수정</button>
+      ${d.lat&&d.lng?`<button class="hy-fixloc-btn hy-rv-btn" onclick="openRvFromPopup(new kakao.maps.LatLng(${d.lat},${d.lng}))">🔭 로드뷰</button>`:''}
+    </div>
     ${extraStr?`<div class="iw-extra">${esc(extraStr)}</div>`:''}
     <div class="iw-divider"></div>
 
@@ -2066,7 +2086,7 @@ function renderPopup(iwEl,idx,d,iw){
     </div>
 
     <div class="hy-section">
-      <div class="hy-label">소화전 종류<span style="color:#dc2626;font-weight:800">(자동판별-수정시 선택)</span></div>
+      <div class="hy-label" style="display:flex;align-items:baseline;gap:6px">소화전 종류<span style="color:#dc2626;font-weight:800">(자동판별)</span>${installYear?`<span style="margin-left:auto;color:#3b82f6;font-weight:700">설치년도 ${esc(String(installYear))}</span>`:''}</div>
       <div class="hy-toggle-row">
         <button class="hy-tbtn${draft.hydrant_type==='ground'?' on':''}" onclick="hySetType(${idx},'ground')">🔴 지상식</button>
         <button class="hy-tbtn${draft.hydrant_type==='underground'?' on':''}" onclick="hySetType(${idx},'underground')">🔵 지하식</button>
