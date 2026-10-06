@@ -27,12 +27,12 @@ body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);col
 input,textarea,select{background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s}
 input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--sur);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 16px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:9999;transform:translateY(60px);opacity:0;transition:all .25s;max-width:300px;pointer-events:none}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--sur);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 16px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:20001;transform:translateY(60px);opacity:0;transition:all .25s;max-width:300px;pointer-events:none}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:var(--lo)}.toast.err{border-color:var(--hi)}
 
 /* ═══ Modal ═══ */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;align-items:center;justify-content:center;padding:16px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:20000;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
 /* ── 지도 인쇄 모드 ──
    화면 자체를 "종이 한 장" 크기(A4 가로 인쇄면 283×194mm)로 고정한다.
@@ -623,8 +623,8 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
       <select id="printScope" onchange="_onPrintScopeChange()" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700"></select>
       <div id="printAnchorRow" style="display:none;margin-top:8px;padding:9px;border-radius:6px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3)">
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="text" id="printAnchorNo" placeholder="기준 소화전 번호 (예: 001595)" inputmode="numeric" style="flex:1;min-width:0;padding:7px 9px;font-size:13px;font-weight:700">
-          <select id="printRadius" style="padding:7px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700">
+          <input type="text" id="printAnchorNo" placeholder="소화전 번호 (예: 001595)" inputmode="numeric" style="flex:1;min-width:120px;padding:7px 9px;font-size:13px;font-weight:700">
+          <select id="printRadius" style="width:auto;flex:none;padding:7px;background:var(--sur2);border:1px solid var(--bd2);color:var(--tx);border-radius:var(--r);font-size:13px;font-weight:700">
             <option value="100">반경 100m</option><option value="200">반경 200m</option><option value="300" selected>반경 300m</option><option value="500">반경 500m</option><option value="1000">반경 1km</option>
           </select>
         </div>
@@ -786,16 +786,19 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/utils.js"></script>
 <script src="https://rcntiger.github.io/common/supabase.js"></script>
 <script src="https://rcntiger.github.io/common/excel.js"></script>
+<script src="https://rcntiger.github.io/common/config.js?v=1"></script>
+<script src="https://rcntiger.github.io/common/kakao.js?v=1"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.3.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
-const SB_URL  = 'https://uxbbzvvkpebdvdjobnyz.supabase.co'; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4YmJ6dnZrcGViZHZkam9ibnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIzNTQsImV4cCI6MjA4OTU4ODM1NH0.PvCMpxSv-B3woWKfjxEkoyv1gDdjEHZy3_lvWVrSz2E';
-const JS_KEY  = 'a5e543d870953c97c0775ff90846c81b';
-const REST_KEY= '679e96ad11a237d821892915c0d0a7d8';
+const APP_VERSION = 'v2.4.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+// ── 키·주소는 공통 설정(common/config.js) 한 곳에서 관리 ── (이 파일에는 키를 적지 않음)
+const _CFG=window.CONFIG||null;
+const SB_URL  = _CFG?.SUPABASE?.hydrant?.url; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
+const SB_KEY  = _CFG?.SUPABASE?.hydrant?.anonKey;
+if(window.KakaoUtil)KakaoUtil.init({jsKey:_CFG?.KAKAO_JS_KEY,libraries:['services','clusterer']});
 // ━━ Cloudinary (사진 업로드) — 119hyd-inspec.html과 동일 계정 사용 ━━
-const CLOUDINARY_CLOUD = 'dg4bnj8ad';
-const CLOUDINARY_PRESET = '119hyd_photos';
+const CLOUDINARY_CLOUD = _CFG?.CLOUDINARY?.cloud;
+const CLOUDINARY_PRESET = _CFG?.CLOUDINARY?.presets?.hydrant;
 const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
 const GROUP_COLORS = ['#3b5fc4','#c0392b','#7c3aed','#0891b2','#059669','#be185d'];
 
@@ -876,6 +879,10 @@ const sbClient=()=>SupabaseUtil.getClient();
 
 /* ══════════ Init ══════════ */
 document.addEventListener('DOMContentLoaded',()=>{
+  if(!_CFG||!window.KakaoUtil){
+    document.body.insertAdjacentHTML('afterbegin','<div style="position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#e6edf3;padding:24px;text-align:center;font-size:15px;line-height:1.6">공통 설정 파일(common/config.js, kakao.js)을 불러오지 못했습니다.<br>인터넷 연결을 확인하고 새로고침하세요.</div>');
+    return;
+  }
   SupabaseUtil.init(SB_URL,SB_KEY);
   _checkAdminSession();
   try{SupabaseUtil.getClient().auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')_setAdmin(false);});}catch{}
@@ -892,7 +899,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('mapView').style.display='none';
   loadProjects();
   // 홈 화면을 보는 동안 지도 SDK를 미리 받아 둠 (카드 누른 뒤 기다리는 시간 단축)
-  (window.requestIdleCallback||((f)=>setTimeout(f,800)))(()=>loadKakaoSdk().catch(()=>{}));
+  KakaoUtil.preload();
   // 점검자/점검일자 복원
   const nameEl=document.getElementById('inspNameGlobal');
   const dateEl=document.getElementById('inspDateGlobal');
@@ -1752,7 +1759,8 @@ function applyFilter(){
     if(li&&li.classList.contains('hidden')!==hide)li.classList.toggle('hidden',hide);
     const o=overlays[i];
     if(o){
-      _ovSet(o.overlay,!hide&&!_zoomFar);
+      const inBf=_bf&&_bf.marks.has(d.id); // 일괄 위치수정 중인 마커는 원래 마커를 숨긴 채 유지
+      _ovSet(o.overlay,!hide&&!_zoomFar&&!inBf);
       _ovSet(o.labelOverlay,!hide&&labelsOn&&!_labelFar);
       // 클러스터러 계산용 invisible 마커도 같이 빼줘야 카카오 기본 풍선이 남지 않음
       if(clusterer&&o.clMarker&&o.hidden!==hide){
@@ -1799,21 +1807,7 @@ function syncMapToolbars(){
 }
 // ── 카카오 지도 SDK 받기 (한 번만) ──
 // 홈 화면이 뜬 직후 미리 받아 두면, 카드를 눌렀을 때 SDK를 기다리지 않고 바로 지도를 만든다.
-let _sdkPromise=null,_sdkMs=0;
-function loadKakaoSdk(){
-  if(_sdkPromise)return _sdkPromise;
-  const t0=performance.now();
-  _sdkPromise=new Promise((resolve,reject)=>{
-    if(window.kakao&&kakao.maps&&kakao.maps.Map){resolve();return;}
-    const timer=setTimeout(()=>reject(new Error('TIMEOUT')),10000);
-    const s=document.createElement('script');
-    s.src=`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${JS_KEY}&autoload=false&libraries=services,clusterer`;
-    s.onerror=()=>{clearTimeout(timer);reject(new Error('SCRIPT_LOAD'));};
-    s.onload=()=>{kakao.maps.load(()=>{clearTimeout(timer);_sdkMs=performance.now()-t0;resolve();});};
-    document.head.appendChild(s);
-  }).catch(e=>{_sdkPromise=null;throw e;}); // 실패하면 다음에 다시 시도할 수 있게
-  return _sdkPromise;
-}
+function loadKakaoSdk(){return KakaoUtil.load();} // common/kakao.js (한 번만 받음, 미리 받기 지원)
 function initKakaoMap(){
   // 이미 만들어진 지도로 다른 계획을 다시 열 때도 툴바를 다시 표시해야 한다
   // (예전엔 처음 한 번만 표시하고, 홈으로 나갈 때 숨긴 뒤 다시 켜지 않아 툴바가 사라지던 버그)
@@ -1904,6 +1898,7 @@ function panToForCard(lat,lng){
 //   그래서 계획 전환(전체 → 홈 → 조 카드 등) 시 이전 계획의 마커가 유령처럼 남아
 //   "조 하나만 골랐는데 다른 조가 보이는" 버그가 났다. 반드시 이 함수로 지운 뒤 초기화할 것.
 function clearMapOverlays(){
+  if(typeof _flushAllMemoHist==='function')_flushAllMemoHist();
   closeIw();
   if(typeof stopPreciseGps==='function')stopPreciseGps();
   if(_bf){_bf.marks.forEach(r=>{r.marker.setMap(null);r.line?.setMap(null);});_bf=null;
@@ -2403,9 +2398,28 @@ function renderPhotoGrid(idx,photos){
    위치 수정·점검 입력·완료·메모·사진 변경을 hydmap_history 표에 한 줄씩 쌓는다 (수정·삭제 불가, 계속 누적).
    기록 실패는 원래 작업을 막지 않는다 (경고만). */
 let _histWarned=false;
-function logHistory(d,action,detail){
-  if(!d||!currentProject)return;
-  const row={inspection_id:currentProject.id,item_id:d.id,item_name:d.name,action,detail:detail||null,actor:getInspName()||null};
+// 메모는 입력을 멈출 때마다(2초) 자동 저장되므로, 그때마다 이력을 남기면 한 번 쓰는 데 수십 줄이 쌓였다.
+// 같은 소화전의 메모 변경은 30초 동안 모아 "처음 내용 → 마지막 내용" 한 줄로 기록한다.
+const _memoHist={};
+function _logMemoChange(d,before,after){
+  const k=d.id;
+  if(!_memoHist[k])_memoHist[k]={d,from:before,pid:currentProject?.id};
+  _memoHist[k].to=after;
+  clearTimeout(_memoHist[k].t);
+  _memoHist[k].t=setTimeout(()=>_flushMemoHist(k),30000);
+}
+function _flushMemoHist(k){
+  const h=_memoHist[k];if(!h)return;
+  clearTimeout(h.t);delete _memoHist[k];
+  if((h.from||'')!==(h.to||''))logHistory(h.d,'메모',{from:h.from,to:h.to},h.pid);
+}
+function _flushAllMemoHist(){Object.keys(_memoHist).forEach(_flushMemoHist);}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')_flushAllMemoHist();});
+window.addEventListener('pagehide',_flushAllMemoHist);
+function logHistory(d,action,detail,pid){
+  const insp=pid||currentProject?.id;
+  if(!d||!insp)return;
+  const row={inspection_id:insp,item_id:d.id,item_name:d.name,action,detail:detail||null,actor:getInspName()||null};
   SupabaseUtil.insert('hydmap_history',row).catch(e=>{
     console.warn('변경 이력 기록 실패',e);
     if(!_histWarned){_histWarned=true;showToast('변경 이력이 기록되지 않았습니다 — Supabase에 hydmap_history 표가 있는지 확인하세요','err');}
@@ -2526,7 +2540,7 @@ async function saveMemoNow(idx){
   const before=memoMap[d.id]||'';
   await SupabaseUtil.upsert('hydmap_memo',{item_id:d.id,inspection_id:currentProject.id,memo:text},'item_id');
   memoMap[d.id]=text;
-  if(before!==text)logHistory(d,'메모',{from:before,to:text});
+  if(before!==text)_logMemoChange(d,before,text);
   const st=document.getElementById(`memoSt-${idx}`);
   if(st){st.textContent='✅ 저장됨';setTimeout(()=>{if(st)st.textContent='';},2000);}
   showToast('메모 저장됨','ok');
@@ -2537,6 +2551,7 @@ async function deleteMemoNow(idx){
   const before=memoMap[d.id]||'';
   await SupabaseUtil.remove('hydmap_memo',{item_id:d.id});
   memoMap[d.id]='';
+  _flushMemoHist(d.id);
   if(before)logHistory(d,'메모 삭제',{from:before});
   const el=document.getElementById(`memo-${idx}`);if(el)el.value='';
   const len=document.getElementById(`memoLen-${idx}`);if(len)len.textContent='0/300자';
@@ -2765,27 +2780,12 @@ function startFixLocation(idx){
   hyReRender(idx);
 }
 // 좌표 → 주소 역지오코딩 (지도를 클릭했을 때 그 지점의 주소를 함께 받아오기 위함)
+// 주소·장소 검색은 common/kakao.js(KakaoUtil) 사용 — 지도 SDK services, REST 키 불필요
 // 좌표 → {road:도로명주소, jibun:지번주소}
-async function reverseGeocode2(lat,lng){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){
-      const doc=(await r.json()).documents?.[0];
-      if(doc)return {road:doc.road_address?.address_name||null,jibun:doc.address?.address_name||null};
-    }
-  }catch{}
-  return {road:null,jibun:null};
-}
+function reverseGeocode2(lat,lng){return KakaoUtil.reverseGeocode(lat,lng);}
 async function reverseGeocode(lat,lng){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${lng}&y=${lat}`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){
-      const data=await r.json();
-      const doc=data.documents?.[0];
-      if(doc)return doc.road_address?.address_name||doc.address?.address_name||null;
-    }
-  }catch{}
-  return null;
+  const a=await reverseGeocode2(lat,lng);
+  return a.road||a.jibun||null;
 }
 async function applyFixLocation(idx,latLng){
   const d=items[idx];if(!d)return;
@@ -3199,18 +3199,12 @@ function extractCoreRoadAddress(addr){
   return core===addr.trim()?null:core;
 }
 async function kakaoAddrSearch(q){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
-  }catch{}
-  return null;
+  const r=await KakaoUtil.addressSearch(q,1);
+  return r[0]?{lat:r[0].lat,lng:r[0].lng}:null;
 }
 async function kakaoKeywordSearch(q){
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    if(r.ok){const d=await r.json();if(d.documents?.[0])return{lat:+d.documents[0].y,lng:+d.documents[0].x};}
-  }catch{}
-  return null;
+  const r=await KakaoUtil.keywordSearch(q,1);
+  return r[0]?{lat:r[0].lat,lng:r[0].lng}:null;
 }
 // 카카오가 다 실패했을 때 최종 폴백 (OpenStreetMap 지오코딩, 무료/무인증)
 async function nominatimSearch(q){
@@ -3333,16 +3327,8 @@ async function searchMap(){
   const res=document.getElementById('mapSearchResults');
   res.innerHTML='<div class="sri" style="cursor:default">검색 중...</div>';res.style.display='block';
   let results=[];
-  try{
-    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=10`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-    const d=await r.json();
-    if(d.documents?.length)results=d.documents.map(doc=>({name:doc.place_name,addr:doc.road_address_name||doc.address_name,lat:+doc.y,lng:+doc.x}));
-    else{
-      const r2=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=10`,{headers:{Authorization:'KakaoAK '+REST_KEY}});
-      const d2=await r2.json();
-      results=d2.documents?.map(doc=>({name:doc.address_name,addr:doc.road_address?.address_name||'',lat:+doc.y,lng:+doc.x}))||[];
-    }
-  }catch{}
+  results=await KakaoUtil.keywordSearch(q,10);
+  if(!results.length)results=await KakaoUtil.addressSearch(q,10);
   if(!results.length){res.innerHTML='<div class="sri" style="cursor:default;color:var(--mt)">검색 결과 없음</div>';return;}
   res.innerHTML='';
   results.forEach((r,i)=>{
