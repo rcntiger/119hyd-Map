@@ -7,6 +7,22 @@
 
 ---
 
+## v2.4.2 (2026-10-06)
+
+### 수정 — 공통 파일 이름 충돌
+- v2.4.0에서 만든 `common/config.js`, `common/kakao.js`가 **기존 공통 모듈과 이름이 겹쳐** 덮어쓰는 문제.
+  → 새 파일 이름을 `common/keys.js`(전역 `APP_KEYS`), `common/kakao-geo.js`(전역 `KakaoGeo`)로 변경.
+  기존 config.js·kakao.js는 원래대로 복원해야 함.
+
+---
+
+## v2.4.1 (2026-10-06)
+
+- 공통 파일 갱신에 맞춰 `config.js?v=2`, `kakao.js?v=2`로 번호 올림
+  (common/config.js에 현장 확인 점검 지도 프로젝트 추가, kakao.js에 원본 결과 검색 함수 추가 — 이 앱 동작은 동일).
+
+---
+
 ## v2.4.0 (2026-10-05)
 
 ### ⚠ 배포 순서
