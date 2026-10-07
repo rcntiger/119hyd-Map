@@ -786,16 +786,16 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/utils.js"></script>
 <script src="https://rcntiger.github.io/common/supabase.js"></script>
 <script src="https://rcntiger.github.io/common/excel.js"></script>
-<script src="https://rcntiger.github.io/common/config.js?v=1"></script>
-<script src="https://rcntiger.github.io/common/kakao.js?v=1"></script>
+<script src="https://rcntiger.github.io/common/keys.js?v=1"></script>
+<script src="https://rcntiger.github.io/common/kakao-geo.js?v=1"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.4.0'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
-// ── 키·주소는 공통 설정(common/config.js) 한 곳에서 관리 ── (이 파일에는 키를 적지 않음)
-const _CFG=window.CONFIG||null;
+const APP_VERSION = 'v2.4.2'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+// ── 키·주소는 공통 키 설정(common/keys.js) 한 곳에서 관리 ── (이 파일에는 키를 적지 않음)
+const _CFG=window.APP_KEYS||null;
 const SB_URL  = _CFG?.SUPABASE?.hydrant?.url; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
 const SB_KEY  = _CFG?.SUPABASE?.hydrant?.anonKey;
-if(window.KakaoUtil)KakaoUtil.init({jsKey:_CFG?.KAKAO_JS_KEY,libraries:['services','clusterer']});
+if(window.KakaoGeo)KakaoGeo.init({jsKey:_CFG?.KAKAO_JS_KEY,libraries:['services','clusterer']});
 // ━━ Cloudinary (사진 업로드) — 119hyd-inspec.html과 동일 계정 사용 ━━
 const CLOUDINARY_CLOUD = _CFG?.CLOUDINARY?.cloud;
 const CLOUDINARY_PRESET = _CFG?.CLOUDINARY?.presets?.hydrant;
@@ -879,8 +879,8 @@ const sbClient=()=>SupabaseUtil.getClient();
 
 /* ══════════ Init ══════════ */
 document.addEventListener('DOMContentLoaded',()=>{
-  if(!_CFG||!window.KakaoUtil){
-    document.body.insertAdjacentHTML('afterbegin','<div style="position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#e6edf3;padding:24px;text-align:center;font-size:15px;line-height:1.6">공통 설정 파일(common/config.js, kakao.js)을 불러오지 못했습니다.<br>인터넷 연결을 확인하고 새로고침하세요.</div>');
+  if(!_CFG||!window.KakaoGeo){
+    document.body.insertAdjacentHTML('afterbegin','<div style="position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#e6edf3;padding:24px;text-align:center;font-size:15px;line-height:1.6">공통 설정 파일(common/keys.js, kakao-geo.js)을 불러오지 못했습니다.<br>인터넷 연결을 확인하고 새로고침하세요.</div>');
     return;
   }
   SupabaseUtil.init(SB_URL,SB_KEY);
@@ -899,7 +899,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('mapView').style.display='none';
   loadProjects();
   // 홈 화면을 보는 동안 지도 SDK를 미리 받아 둠 (카드 누른 뒤 기다리는 시간 단축)
-  KakaoUtil.preload();
+  KakaoGeo.preload();
   // 점검자/점검일자 복원
   const nameEl=document.getElementById('inspNameGlobal');
   const dateEl=document.getElementById('inspDateGlobal');
@@ -1807,7 +1807,7 @@ function syncMapToolbars(){
 }
 // ── 카카오 지도 SDK 받기 (한 번만) ──
 // 홈 화면이 뜬 직후 미리 받아 두면, 카드를 눌렀을 때 SDK를 기다리지 않고 바로 지도를 만든다.
-function loadKakaoSdk(){return KakaoUtil.load();} // common/kakao.js (한 번만 받음, 미리 받기 지원)
+function loadKakaoSdk(){return KakaoGeo.load();} // common/kakao-geo.js (한 번만 받음, 미리 받기 지원)
 function initKakaoMap(){
   // 이미 만들어진 지도로 다른 계획을 다시 열 때도 툴바를 다시 표시해야 한다
   // (예전엔 처음 한 번만 표시하고, 홈으로 나갈 때 숨긴 뒤 다시 켜지 않아 툴바가 사라지던 버그)
@@ -2780,9 +2780,9 @@ function startFixLocation(idx){
   hyReRender(idx);
 }
 // 좌표 → 주소 역지오코딩 (지도를 클릭했을 때 그 지점의 주소를 함께 받아오기 위함)
-// 주소·장소 검색은 common/kakao.js(KakaoUtil) 사용 — 지도 SDK services, REST 키 불필요
+// 주소·장소 검색은 common/kakao-geo.js(KakaoGeo) 사용 — 지도 SDK services, REST 키 불필요
 // 좌표 → {road:도로명주소, jibun:지번주소}
-function reverseGeocode2(lat,lng){return KakaoUtil.reverseGeocode(lat,lng);}
+function reverseGeocode2(lat,lng){return KakaoGeo.reverseGeocode(lat,lng);}
 async function reverseGeocode(lat,lng){
   const a=await reverseGeocode2(lat,lng);
   return a.road||a.jibun||null;
@@ -3199,11 +3199,11 @@ function extractCoreRoadAddress(addr){
   return core===addr.trim()?null:core;
 }
 async function kakaoAddrSearch(q){
-  const r=await KakaoUtil.addressSearch(q,1);
+  const r=await KakaoGeo.addressSearch(q,1);
   return r[0]?{lat:r[0].lat,lng:r[0].lng}:null;
 }
 async function kakaoKeywordSearch(q){
-  const r=await KakaoUtil.keywordSearch(q,1);
+  const r=await KakaoGeo.keywordSearch(q,1);
   return r[0]?{lat:r[0].lat,lng:r[0].lng}:null;
 }
 // 카카오가 다 실패했을 때 최종 폴백 (OpenStreetMap 지오코딩, 무료/무인증)
@@ -3327,8 +3327,8 @@ async function searchMap(){
   const res=document.getElementById('mapSearchResults');
   res.innerHTML='<div class="sri" style="cursor:default">검색 중...</div>';res.style.display='block';
   let results=[];
-  results=await KakaoUtil.keywordSearch(q,10);
-  if(!results.length)results=await KakaoUtil.addressSearch(q,10);
+  results=await KakaoGeo.keywordSearch(q,10);
+  if(!results.length)results=await KakaoGeo.addressSearch(q,10);
   if(!results.length){res.innerHTML='<div class="sri" style="cursor:default;color:var(--mt)">검색 결과 없음</div>';return;}
   res.innerHTML='';
   results.forEach((r,i)=>{
