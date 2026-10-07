@@ -405,7 +405,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 </div>
 
 <!-- ════ 맵 뷰 ════ -->
-<div id="mapView" style="display:flex;flex-direction:column">
+<div id="mapView" style="display:none;flex-direction:column">
   <div class="map-header" id="mapHeader">
     <div class="map-header-row1">
       <button class="back-btn" id="backBtn" onclick="handleBack()">← 이전 화면</button>
@@ -790,7 +790,7 @@ html.printing-map #printBar{display:flex;position:fixed;left:50%;bottom:14px;tra
 <script src="https://rcntiger.github.io/common/kakao-geo.js?v=1"></script>
 <script>
 // ━━ 상수 ━━
-const APP_VERSION = 'v2.4.2'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
+const APP_VERSION = 'v2.4.3'; // 버전 규칙: 주(DB 변경/호환 깨짐).부(기능 추가).수(버그 수정) — 배포 시 CHANGELOG.md도 함께 갱신
 // ── 키·주소는 공통 키 설정(common/keys.js) 한 곳에서 관리 ── (이 파일에는 키를 적지 않음)
 const _CFG=window.APP_KEYS||null;
 const SB_URL  = _CFG?.SUPABASE?.hydrant?.url; // 소화전 점검 DB (119hyd-inspec와 동일 프로젝트, 별도 hydmap_ 테이블 사용)
